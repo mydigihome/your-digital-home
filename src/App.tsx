@@ -23,6 +23,7 @@ import StudioPage from "./pages/StudioPage";
 import RelationshipsPage from "./pages/RelationshipsPage";
 import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
+import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -78,6 +79,7 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/welcome" element={<ProtectedRoute><OnboardingGuard><NewOnboarding /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute><OnboardingGuard><NewOnboarding /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />

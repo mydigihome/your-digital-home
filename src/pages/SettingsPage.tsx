@@ -105,7 +105,14 @@ export default function SettingsPage() {
         {section === "Subscription" && (
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
             <p className="text-sm font-medium mb-1">Current Plan</p>
-            <p className="text-sm text-muted-foreground capitalize">{(prefs as any)?.plan_tier || "Free"}</p>
+            <p className="text-sm text-muted-foreground capitalize mb-3">{(prefs as any)?.plan_tier || "Free"}</p>
+            {((prefs as any)?.plan_tier || "free") === "free" ? (
+              <a href="https://buy.stripe.com/aFa3cvf0eagu0CM55Eak001" target="_blank" rel="noopener noreferrer" className="inline-block px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:opacity-90">
+                Upgrade to Pro
+              </a>
+            ) : (
+              <span className="inline-block px-3 py-1 text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full">Active</span>
+            )}
           </div>
         )}
 
