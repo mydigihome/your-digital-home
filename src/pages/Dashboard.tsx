@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useProjects } from "@/hooks/useProjects";
-import { useQuickTodos } from "@/hooks/useQuickTodos";
+import { useQuickTodos, useAddQuickTodo, useUpdateQuickTodo } from "@/hooks/useQuickTodos";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { useUserFinances } from "@/hooks/useUserFinances";
 import AppShell from "@/components/AppShell";
@@ -24,7 +24,9 @@ export default function Dashboard() {
   const today = format(new Date(), "EEEE, MMMM d");
 
   const { data: projects } = useProjects();
-  const { data: todos, toggleTodo, addTodo } = useQuickTodos();
+  const { data: todos } = useQuickTodos();
+  const addTodoMutation = useAddQuickTodo();
+  const toggleTodoMutation = useUpdateQuickTodo();
   const { data: events } = useCalendarEvents();
   const { data: finances } = useUserFinances();
 
@@ -40,7 +42,7 @@ export default function Dashboard() {
 
   const handleAddTodo = () => {
     if (!newTodo.trim()) return;
-    addTodo(newTodo.trim());
+    addTodoMutation.mutate({ text: newTodo.trim() });
     setNewTodo("");
   };
 
@@ -53,7 +55,6 @@ export default function Dashboard() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Today's Agenda */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
             <h2 className="text-sm font-semibold mb-3">Today's Agenda</h2>
             {todayEvents.length === 0 ? (
@@ -75,18 +76,15 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Quick Todos */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
             <h2 className="text-sm font-semibold mb-3">Quick Todos</h2>
             <ul className="space-y-1.5 mb-3">
               {incompleteTodos.map((t: any) => (
                 <li key={t.id} className="flex items-center gap-2 text-sm">
                   <button
-                    onClick={() => toggleTodo({ id: t.id, completed: true })}
+                    onClick={() => toggleTodoMutation.mutate({ id: t.id, completed: true })}
                     className="h-4 w-4 rounded border border-zinc-300 dark:border-zinc-600 flex items-center justify-center hover:border-primary"
-                  >
-                    {t.completed && <Check className="h-3 w-3 text-primary" />}
-                  </button>
+                  />
                   <span>{t.task}</span>
                 </li>
               ))}
@@ -108,7 +106,6 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Recent Projects */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold">Recent Projects</h2>
@@ -119,11 +116,7 @@ export default function Dashboard() {
             ) : (
               <ul className="space-y-2">
                 {recentProjects.map((p: any) => (
-                  <li
-                    key={p.id}
-                    onClick={() => navigate(`/projects/${p.id}`)}
-                    className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer"
-                  >
+                  <li key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="flex items-center justify-between p-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 cursor-pointer">
                     <div>
                       <p className="text-sm font-medium">{p.title || p.name}</p>
                       <p className="text-xs text-muted-foreground capitalize">{p.type}</p>
@@ -135,7 +128,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Money Snapshot */}
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold">Money Snapshot</h2>

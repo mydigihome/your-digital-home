@@ -26,7 +26,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (prefs) {
-      setDarkMode(prefs.dark_mode || false);
+      setDarkMode((prefs as any).dark_mode || false);
       setAvatarUrl((prefs as any).avatar_url || "");
     }
   }, [prefs]);
