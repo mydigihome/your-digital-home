@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, X, Settings, DollarSign, CreditCard, Clapperboard, FolderOpen, Users, BookOpen, UserPlus, FileText, Download, TrendingUp } from "lucide-react";
@@ -90,6 +91,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
     if ("Notification" in window) setPushPermission(Notification.permission);
   }, []);
 
+  // Load notification settings
   useEffect(() => {
     const loadSettings = async () => {
       const { data } = await (supabase as any).from("user_preferences").select("notification_settings").eq("user_id", userId).maybeSingle();
@@ -107,7 +109,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
     setPushPermission(permission);
     if (permission === "granted") {
       toast("Notifications enabled! 🔔");
-      setTimeout(() => { new window.Notification("Digital Home", { body: "You're all set! Notifications are working.", icon: "/favicon.ico" }); }, 1000);
+      setTimeout(() => { new Notification("Digital Home", { body: "You're all set! Notifications are working.", icon: "/favicon.ico" }); }, 1000);
     }
   };
 
@@ -131,6 +133,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
     onUnreadCountChange(unreadCount);
   }, [unreadCount, onUnreadCountChange]);
 
+  // Load notifications
   useEffect(() => {
     const load = async () => {
       const { data, count } = await (supabase as any).from("notifications").select("*", { count: "exact" }).eq("user_id", userId).order("created_at", { ascending: false }).limit(50);
@@ -146,6 +149,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
     load();
   }, [userId]);
 
+  // Realtime
   useEffect(() => {
     const channel = supabase.channel("notifs-realtime").on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` }, (payload: any) => {
       setNotifications(prev => [payload.new as Notification, ...prev]);
@@ -154,6 +158,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
     return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
+  // Outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const panel = document.querySelector(".notif-panel");
@@ -175,6 +180,8 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
   };
 
   const handleDelete = async (id: string) => {
+    const notif = notifications.find(n => n.id === id);
+    const wasUnread = notif && !notif.read;
     await (supabase as any).from("notifications").delete().eq("id", id).eq("user_id", userId);
     setNotifications(prev => prev.filter(n => n.id !== id));
     toast("Notification removed");
@@ -218,6 +225,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
       background: panelBg, borderRadius: "16px", border: `1px solid ${panelBorder}`,
       boxShadow: panelShadow, zIndex: 9999, display: "flex", flexDirection: "column", overflow: "hidden",
     }}>
+      {/* Header */}
       <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${headerBorder}`, flexShrink: 0 }}>
         <h3 style={{ fontSize: "17px", fontWeight: "700", color: titleColor, fontFamily: "Inter, sans-serif", margin: 0 }}>Notifications</h3>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -228,6 +236,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
         </div>
       </div>
 
+      {/* Tab Bar */}
       <div style={{ display: "flex", padding: "12px 20px 0", gap: "4px", flexShrink: 0, borderBottom: `1px solid ${headerBorder}` }}>
         {[
           { id: "all", label: "View all" },
@@ -254,6 +263,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
         </button>
       </div>
 
+      {/* List */}
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 0" }}>
         {loading ? (
           <div style={{ padding: "48px 20px", textAlign: "center" }}>
@@ -324,9 +334,11 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
 
       <style>{`.notif-row:hover .notif-delete { opacity: 1 !important; }`}</style>
 
+      {/* Notification Settings Modal */}
       {notifSettingsOpen && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 10000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }} onClick={() => setNotifSettingsOpen(false)}>
           <div style={{ background: isDark ? "#1C1C1E" : "white", borderRadius: "20px", width: "min(480px, 95vw)", maxHeight: "85vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
             <div style={{ padding: "20px 24px", borderBottom: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#F3F4F6"}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h2 style={{ fontSize: "18px", fontWeight: "700", color: isDark ? "#F2F2F2" : "#111827", fontFamily: "Inter, sans-serif", margin: 0, marginBottom: "2px" }}>Notification Settings</h2>
@@ -334,7 +346,9 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
               </div>
               <button onClick={() => setNotifSettingsOpen(false)} style={{ background: "transparent", border: "none", cursor: "pointer" }}><X size={18} color="#6B7280" /></button>
             </div>
+            {/* Content */}
             <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px" }}>
+              {/* Push Notifications */}
               <div style={{ marginBottom: "28px" }}>
                 <p style={{ fontSize: "11px", fontWeight: "700", color: isDark ? "rgba(255,255,255,0.3)" : "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "14px", fontFamily: "Inter, sans-serif" }}>Device Notifications</p>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", background: isDark ? "#252528" : "#F9FAFB", borderRadius: "12px" }}>
@@ -349,6 +363,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
                   </button>
                 </div>
               </div>
+              {/* Notification Types */}
               <div style={{ marginBottom: "28px" }}>
                 <p style={{ fontSize: "11px", fontWeight: "700", color: isDark ? "rgba(255,255,255,0.3)" : "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "14px", fontFamily: "Inter, sans-serif" }}>Notify Me About</p>
                 {[
@@ -375,6 +390,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
                   </div>
                 ))}
               </div>
+              {/* Quiet Hours */}
               <div style={{ marginBottom: "20px" }}>
                 <p style={{ fontSize: "11px", fontWeight: "700", color: isDark ? "rgba(255,255,255,0.3)" : "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "14px", fontFamily: "Inter, sans-serif" }}>Quiet Hours</p>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
@@ -396,6 +412,7 @@ export default function NotificationPanel({ onClose, onUnreadCountChange, userId
                 </div>
               </div>
             </div>
+            {/* Footer */}
             <div style={{ padding: "16px 24px", borderTop: `1px solid ${isDark ? "rgba(255,255,255,0.06)" : "#F3F4F6"}`, display: "flex", justifyContent: "flex-end", gap: "8px" }}>
               <button onClick={() => setNotifSettingsOpen(false)} style={{ padding: "9px 20px", border: `1.5px solid ${isDark ? "rgba(255,255,255,0.1)" : "#E5E7EB"}`, borderRadius: "8px", background: isDark ? "#252528" : "white", fontSize: "13px", fontWeight: "500", color: isDark ? "#F2F2F2" : "#374151", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>Cancel</button>
               <button onClick={saveNotifSettings} style={{ padding: "9px 20px", border: "none", borderRadius: "8px", background: "#10B981", fontSize: "13px", fontWeight: "600", color: "white", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>Save Settings</button>
