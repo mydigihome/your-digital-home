@@ -26,3 +26,5 @@ export function useUpsertFinances() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["user_finances"] }),
   });
 }
+
+export const useUpsertUserFinances = useUpsertFinances;
