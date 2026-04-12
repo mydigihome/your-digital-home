@@ -23,7 +23,7 @@ export default function StudioPage() {
 
   const saveProfile = async () => {
     try {
-      await upsert.mutateAsync(form);
+      await upsert.mutateAsync({ ...form, user_id: user!.id });
       toast.success("Profile saved");
       setForm({});
     } catch { toast.error("Failed to save"); }

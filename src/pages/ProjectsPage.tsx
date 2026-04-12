@@ -19,7 +19,7 @@ export default function ProjectsPage() {
   const handleCreate = async () => {
     if (!name.trim()) return;
     try {
-      await createProject.mutateAsync({ title: name.trim(), type: formType, view_preference: "kanban" });
+      await createProject.mutateAsync({ title: name.trim(), name: name.trim(), type: formType, view_preference: "kanban" });
       toast.success("Project created");
       setName("");
       setShowForm(false);

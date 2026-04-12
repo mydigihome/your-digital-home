@@ -6,7 +6,11 @@ export default function AuthCallback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    const handleCallback = async () => {
+      if (window.location.hash.includes("access_token")) {
+        await new Promise(r => setTimeout(r, 300));
+      }
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
         navigate("/login", { replace: true });
         return;
@@ -16,12 +20,12 @@ export default function AuthCallback() {
         .select("onboarding_completed")
         .eq("user_id", session.user.id)
         .maybeSingle();
-      if (!prefs?.onboarding_completed) {
-        navigate("/welcome", { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
-    });
+      navigate(
+        !prefs?.onboarding_completed ? "/welcome" : "/dashboard",
+        { replace: true }
+      );
+    };
+    handleCallback();
   }, [navigate]);
 
   return (
