@@ -23,6 +23,7 @@ import StudioPage from "./pages/StudioPage";
 import RelationshipsPage from "./pages/RelationshipsPage";
 import CalendarPage from "./pages/CalendarPage";
 import SettingsPage from "./pages/SettingsPage";
+import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
