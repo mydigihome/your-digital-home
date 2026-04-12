@@ -14,6 +14,15 @@ import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import NewOnboarding from "./pages/NewOnboarding";
 import Dashboard from "./pages/Dashboard";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
+import JournalPage from "./pages/JournalPage";
+import JournalEntryPage from "./pages/JournalEntryPage";
+import MoneyPage from "./pages/MoneyPage";
+import StudioPage from "./pages/StudioPage";
+import RelationshipsPage from "./pages/RelationshipsPage";
+import CalendarPage from "./pages/CalendarPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -72,6 +81,16 @@ const App = () => (
             <Route path="/welcome" element={<ProtectedRoute><OnboardingGuard><NewOnboarding /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute><OnboardingGuard><NewOnboarding /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/projects" element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
+            <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
+            <Route path="/journal" element={<ProtectedRoute><JournalPage /></ProtectedRoute>} />
+            <Route path="/journal/new" element={<ProtectedRoute><JournalEntryPage /></ProtectedRoute>} />
+            <Route path="/journal/:id" element={<ProtectedRoute><JournalEntryPage /></ProtectedRoute>} />
+            <Route path="/money" element={<ProtectedRoute><MoneyPage /></ProtectedRoute>} />
+            <Route path="/studio" element={<ProtectedRoute><StudioPage /></ProtectedRoute>} />
+            <Route path="/relationships" element={<ProtectedRoute><RelationshipsPage /></ProtectedRoute>} />
+            <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>
