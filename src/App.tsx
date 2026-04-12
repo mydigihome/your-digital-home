@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { useThemeApplicator } from "@/hooks/useThemeApplicator";
@@ -14,17 +14,25 @@ import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import NewOnboarding from "./pages/NewOnboarding";
 import Dashboard from "./pages/Dashboard";
-import ProjectsPage from "./pages/ProjectsPage";
-import ProjectDetailPage from "./pages/ProjectDetailPage";
 import JournalPage from "./pages/JournalPage";
 import JournalEntryPage from "./pages/JournalEntryPage";
-import MoneyPage from "./pages/MoneyPage";
-import StudioPage from "./pages/StudioPage";
-import RelationshipsPage from "./pages/RelationshipsPage";
+import ProjectsPage from "./pages/ProjectsPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
 import CalendarPage from "./pages/CalendarPage";
+import ContentPlanner from "./pages/ContentPlanner";
 import SettingsPage from "./pages/SettingsPage";
+import WealthTrackerPage from "./pages/WealthTrackerPage";
+import ApplicationsTrackerPage from "./pages/ApplicationsTrackerPage";
+import StudioPage from "./pages/StudioPage";
+import AdminDashboard from "./pages/AdminDashboard";
+import PriorityInbox from "./pages/PriorityInbox";
+import PublicEventPage from "./pages/PublicEventPage";
+import AdminTemplates from "./pages/AdminTemplates";
+import RelationshipsPage from "./pages/RelationshipsPage";
+import MonthlyReviewPage from "./pages/MonthlyReviewPage";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import AuthCallback from "./pages/AuthCallback";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -43,8 +51,8 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
     if (!user) { setChecked(true); return; }
     const isOnboarding = location.pathname === "/onboarding" || location.pathname === "/welcome";
     if (!isOnboarding) { setChecked(true); return; }
-    (supabase as any).from("user_preferences").select("onboarding_completed").eq("user_id", user.id).maybeSingle()
-      .then(({ data }: any) => {
+    supabase.from("user_preferences").select("onboarding_completed").eq("user_id", user.id).maybeSingle()
+      .then(({ data }) => {
         if (data?.onboarding_completed) { navigate("/dashboard", { replace: true }); }
         else { setChecked(true); }
       });
@@ -83,16 +91,32 @@ const App = () => (
             <Route path="/welcome" element={<ProtectedRoute><OnboardingGuard><NewOnboarding /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/onboarding" element={<ProtectedRoute><OnboardingGuard><NewOnboarding /></OnboardingGuard></ProtectedRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/projects" element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
-            <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
             <Route path="/journal" element={<ProtectedRoute><JournalPage /></ProtectedRoute>} />
             <Route path="/journal/new" element={<ProtectedRoute><JournalEntryPage /></ProtectedRoute>} />
             <Route path="/journal/:id" element={<ProtectedRoute><JournalEntryPage /></ProtectedRoute>} />
-            <Route path="/money" element={<ProtectedRoute><MoneyPage /></ProtectedRoute>} />
-            <Route path="/studio" element={<ProtectedRoute><StudioPage /></ProtectedRoute>} />
-            <Route path="/relationships" element={<ProtectedRoute><RelationshipsPage /></ProtectedRoute>} />
+            <Route path="/projects" element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
+            <Route path="/projects/:id" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
+            <Route path="/project/:id" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
             <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
+            <Route path="/content-planner" element={<ProtectedRoute><ContentPlanner /></ProtectedRoute>} />
+            <Route path="/finance" element={<Navigate to="/finance/wealth" replace />} />
+            <Route path="/finance/wealth" element={<ProtectedRoute><WealthTrackerPage /></ProtectedRoute>} />
+            <Route path="/money" element={<ProtectedRoute><WealthTrackerPage /></ProtectedRoute>} />
+            <Route path="/finance/applications" element={<ProtectedRoute><ApplicationsTrackerPage /></ProtectedRoute>} />
+            <Route path="/applications" element={<ProtectedRoute><ApplicationsTrackerPage /></ProtectedRoute>} />
+            <Route path="/vision" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/studio" element={<ProtectedRoute><StudioPage /></ProtectedRoute>} />
+            <Route path="/resources" element={<Navigate to="/finance/applications" replace />} />
+            <Route path="/inbox" element={<Navigate to="/relationships" replace />} />
+            <Route path="/contacts" element={<Navigate to="/relationships" replace />} />
             <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/events/:token" element={<PublicEventPage />} />
+            <Route path="/admin/templates" element={<ProtectedRoute><AdminTemplates /></ProtectedRoute>} />
+            <Route path="/relationships" element={<ProtectedRoute><RelationshipsPage /></ProtectedRoute>} />
+            <Route path="/monthly-review" element={<ProtectedRoute><MonthlyReviewPage /></ProtectedRoute>} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </AuthProvider>
