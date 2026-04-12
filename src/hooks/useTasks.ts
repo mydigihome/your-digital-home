@@ -77,3 +77,6 @@ export function useDeleteTask() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
   });
 }
+
+export const useTasks = useAllTasks;
+
