@@ -192,7 +192,7 @@ export default function ApplicationsTrackerPage() {
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (!["pdf", "docx", "doc", "txt"].includes(ext || "")) { toast.error("Supported: PDF, DOCX, DOC, TXT"); return; }
     const path = `${user.id}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("resumes").upload(path, file);
+    const { error } = await (supabase as any).storage.from("resumes").upload(path, file);
     if (error) { toast.error("Upload failed"); return; }
     await createResume.mutateAsync({
       title: file.name.replace(/\.[^/.]+$/, ""),
@@ -206,9 +206,9 @@ export default function ApplicationsTrackerPage() {
     if (!file || !user) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
     const path = `${user.id}/app-tracker-${Date.now()}`;
-    const { error } = await supabase.storage.from("banners").upload(path, file);
+    const { error } = await (supabase as any).storage.from("banners").upload(path, file);
     if (error) { toast.error("Upload failed"); return; }
-    const { data: { publicUrl } } = supabase.storage.from("banners").getPublicUrl(path);
+    const { data: { publicUrl } } = (supabase as any).storage.from("banners").getPublicUrl(path);
     await upsertPrefs.mutateAsync({ app_banner_url: publicUrl } as any);
     setShowBannerMenu(false);
     toast.success("Banner updated");
@@ -838,7 +838,7 @@ function ResourceStudioSection({ userId, userEmail }: { userId?: string; userEma
     if (!userId) return;
     setUploadingId(templateId);
     const path = `templates/${templateId}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("template-files").upload(path, file);
+    const { error } = await (supabase as any).storage.from("template-files").upload(path, file);
     if (error) { toast.error("Upload failed"); setUploadingId(null); return; }
 
     // Update the shop_templates row with file_url
@@ -850,7 +850,7 @@ function ResourceStudioSection({ userId, userEmail }: { userId?: string; userEma
 
   const handlePreview = async (template: any) => {
     if (!template.file_url) { toast.error("No file uploaded yet"); return; }
-    const { data } = await supabase.storage.from("template-files").createSignedUrl(template.file_url, 600);
+    const { data } = await (supabase as any).storage.from("template-files").createSignedUrl(template.file_url, 600);
     if (data?.signedUrl) {
       setPreviewTemplate({ ...template, signedUrl: data.signedUrl });
     } else {
@@ -863,7 +863,7 @@ function ResourceStudioSection({ userId, userEmail }: { userId?: string; userEma
     if (userId) {
       await (supabase as any).from("template_downloads").insert({ template_id: template.id, user_id: userId });
     }
-    const { data } = await supabase.storage.from("template-files").createSignedUrl(template.file_url, 300);
+    const { data } = await (supabase as any).storage.from("template-files").createSignedUrl(template.file_url, 300);
     if (data?.signedUrl) {
       window.open(data.signedUrl, "_blank");
       toast.success("Download started!");
@@ -879,7 +879,7 @@ function ResourceStudioSection({ userId, userEmail }: { userId?: string; userEma
   };
 
   const handleDeleteFile = async (templateId: string, fileUrl: string) => {
-    await supabase.storage.from("template-files").remove([fileUrl]);
+    await (supabase as any).storage.from("template-files").remove([fileUrl]);
     await (supabase as any).from("shop_templates").update({ file_url: null }).eq("id", templateId);
     setTemplates(prev => prev.map(t => t.id === templateId ? { ...t, file_url: null } : t));
     setCardMenuId(null);
@@ -892,9 +892,9 @@ function ResourceStudioSection({ userId, userEmail }: { userId?: string; userEma
     if (!validTypes.includes(file.type)) { toast.error("Only PNG, JPG, WEBP allowed"); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
     const path = `${templateId}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("template-previews").upload(path, file);
+    const { error } = await (supabase as any).storage.from("template-previews").upload(path, file);
     if (error) { toast.error("Upload failed"); return; }
-    const { data: { publicUrl } } = supabase.storage.from("template-previews").getPublicUrl(path);
+    const { data: { publicUrl } } = (supabase as any).storage.from("template-previews").getPublicUrl(path);
     await (supabase as any).from("shop_templates").update({ preview_image_url: publicUrl }).eq("id", templateId);
     setTemplates(prev => prev.map(t => t.id === templateId ? { ...t, preview_image_url: publicUrl } : t));
     toast.success("Preview image uploaded!");

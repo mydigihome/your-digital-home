@@ -99,7 +99,7 @@ export default function LinkedInSelectionPanel({ isOpen, onClose, connections: r
         imported_from: "linkedin",
       }));
 
-      const { error } = await supabase.from("contacts").insert(rows);
+      const { error } = await (supabase as any).from("contacts").insert(rows);
       if (error) throw error;
 
       toast.success(`${rows.length} contacts imported from LinkedIn`);

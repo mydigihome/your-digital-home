@@ -963,7 +963,7 @@ export default function Dashboard() {
               onClick={async () => {
                 const id = deleteEntryId;
                 setDeleteEntryId(null);
-                await supabase.from("journal_entries").delete().eq("id", id!);
+                await (supabase as any).from("journal_entries").delete().eq("id", id!);
                 queryClient.invalidateQueries({ queryKey: ["recent_journal"] });
                 toast("Entry deleted", { action: { label: "Undo", onClick: () => toast.info("Undo not available for this action") }, duration: 5000 });
               }}

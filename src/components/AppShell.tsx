@@ -27,7 +27,7 @@ function SidebarNav({ onNavigate, collapsed = false }: { onNavigate?: () => void
 
   useEffect(() => {
     if (!user) return;
-    supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "super_admin").maybeSingle()
+    (supabase as any).from("user_roles").select("role").eq("user_id", user.id).eq("role", "super_admin").maybeSingle()
       .then(({ data }) => setIsAdmin(!!data));
   }, [user]);
 

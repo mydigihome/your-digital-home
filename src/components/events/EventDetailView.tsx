@@ -211,7 +211,7 @@ export default function EventDetailView({ projectId, projectName, coverImage, pr
       const { error: e2 } = await (supabase as any).from("goal_stages").delete().eq("project_id", projectId);
       if (e2) console.error("goal_stages delete:", e2);
       // Delete old tasks too
-      const { error: e3 } = await supabase.from("tasks").delete().eq("project_id", projectId);
+      const { error: e3 } = await (supabase as any).from("tasks").delete().eq("project_id", projectId);
       if (e3) console.error("tasks delete:", e3);
       // Delete event guests, questions, details
       if (event?.id) {
@@ -220,10 +220,10 @@ export default function EventDetailView({ projectId, projectName, coverImage, pr
         await (supabase as any).from("event_details").delete().eq("id", event.id);
       }
       // Delete documents and contact links
-      await supabase.from("documents").delete().eq("project_id", projectId);
+      await (supabase as any).from("documents").delete().eq("project_id", projectId);
       await (supabase as any).from("contact_project_links").delete().eq("project_id", projectId);
       // Delete the project
-      const { error } = await supabase.from("projects").delete().eq("id", projectId);
+      const { error } = await (supabase as any).from("projects").delete().eq("id", projectId);
       if (error) {
         console.error("Project delete error:", error);
         throw error;
@@ -243,7 +243,7 @@ export default function EventDetailView({ projectId, projectName, coverImage, pr
     if (!user) return;
     setArchiving(true);
     try {
-      await supabase.from("projects").update({ archived: true }).eq("id", projectId).eq("user_id", user.id);
+      await (supabase as any).from("projects").update({ archived: true }).eq("id", projectId).eq("user_id", user.id);
       toast.success("Event archived");
       navigate("/projects");
     } catch (e) {

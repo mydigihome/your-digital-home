@@ -90,9 +90,9 @@ export default function CreateEventModal({ open, onClose }: Props) {
     if (!file || !user) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("Max 5MB"); return; }
     const path = `${user.id}/event-cover-${Date.now()}`;
-    const { error } = await supabase.storage.from("user-assets").upload(path, file);
+    const { error } = await (supabase as any).storage.from("user-assets").upload(path, file);
     if (error) { toast.error("Upload failed"); return; }
-    const { data: { publicUrl } } = supabase.storage.from("user-assets").getPublicUrl(path);
+    const { data: { publicUrl } } = (supabase as any).storage.from("user-assets").getPublicUrl(path);
     setForm(p => ({ ...p, cover_image: publicUrl }));
     toast.success("Cover uploaded");
   };
@@ -124,7 +124,7 @@ export default function CreateEventModal({ open, onClose }: Props) {
       });
 
       if (form.cover_image) {
-        await supabase.from("projects").update({
+        await (supabase as any).from("projects").update({
           cover_image: form.cover_image,
           cover_type: "image",
         }).eq("id", project.id);

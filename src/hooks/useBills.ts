@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+export type Bill = any;
+
 export function useBills() {
   const { user } = useAuth();
   return useQuery({
@@ -26,6 +28,8 @@ export function useCreateBill() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bills"] }),
   });
 }
+
+export const useAddBill = useCreateBill;
 
 export function useUpdateBill() {
   const qc = useQueryClient();

@@ -70,11 +70,11 @@ export default function ProfileHeader() {
     setUploading(true);
     try {
       const path = `${user.id}/avatar.jpg`;
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await (supabase as any).storage
         .from("avatars")
         .upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
+      const { data: urlData } = (supabase as any).storage.from("avatars").getPublicUrl(path);
       const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
       await supabase.auth.updateUser({ data: { avatar_url: publicUrl } });
       setAvatarUrl(publicUrl);

@@ -14,3 +14,25 @@ export function useCollaborators(projectId?: string) {
     enabled: !!projectId,
   });
 }
+
+export function useCreateCollaborator() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (collab: any) => {
+      const { error } = await (supabase as any).from("collaborators").insert(collab);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["collaborators"] }),
+  });
+}
+
+export function useDeleteCollaborator() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from("collaborators").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["collaborators"] }),
+  });
+}

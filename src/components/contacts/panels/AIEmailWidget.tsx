@@ -89,7 +89,7 @@ export default function AIEmailWidget({ contact, suggestedContact }: Props) {
   const trackEmailSent = async () => {
     if (!user) return;
     try {
-      const { error } = await supabase.from("contact_emails").insert({
+      const { error } = await (supabase as any).from("contact_emails").insert({
         user_id: user.id,
         contact_id: active.id,
         content: `Subject: ${subject}\n\n${body}`,
@@ -98,7 +98,7 @@ export default function AIEmailWidget({ contact, suggestedContact }: Props) {
       if (error) console.error("Failed to track email:", error);
 
       // Update last_contacted_date on the contact
-      await supabase.from("contacts").update({
+      await (supabase as any).from("contacts").update({
         last_contacted_date: new Date().toISOString(),
         last_email_date: new Date().toISOString(),
         email_count: (active as any).email_count ? (active as any).email_count + 1 : 1,

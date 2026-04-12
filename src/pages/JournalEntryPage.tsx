@@ -97,7 +97,7 @@ export default function JournalEntryPage() {
   const { data: existingEntry } = useQuery({
     queryKey: ["journal-entry", id],
     queryFn: async () => {
-      const { data } = await supabase.from("journal_entries").select("*").eq("id", id!).single();
+      const { data } = await (supabase as any).from("journal_entries").select("*").eq("id", id!).single();
       return data;
     },
     enabled: !isNew && !!id,
@@ -145,7 +145,7 @@ export default function JournalEntryPage() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     const path = `journal-images/${user.id}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("journal-media").upload(path, file);
+    const { error } = await (supabase as any).storage.from("journal-media").upload(path, file);
     if (error) { toast.error("Upload failed"); return; }
     const { data } = supabase.storage.from("journal-media").getPublicUrl(path);
     setImageUrl(data.publicUrl);
@@ -200,7 +200,7 @@ export default function JournalEntryPage() {
   const uploadAudio = async (blob: Blob): Promise<string | null> => {
     if (!user) return null;
     const path = `journal-audio/${user.id}/${Date.now()}.webm`;
-    const { error } = await supabase.storage.from("journal-media").upload(path, blob);
+    const { error } = await (supabase as any).storage.from("journal-media").upload(path, blob);
     if (error) return null;
     const { data } = supabase.storage.from("journal-media").getPublicUrl(path);
     return data.publicUrl;
@@ -228,10 +228,10 @@ export default function JournalEntryPage() {
         updated_at: new Date().toISOString(),
       };
       if (entryId) {
-        await supabase.from("journal_entries").update(entryData).eq("id", entryId);
+        await (supabase as any).from("journal_entries").update(entryData).eq("id", entryId);
       } else {
         entryData.entry_date = new Date().toISOString().split("T")[0];
-        const { data } = await supabase.from("journal_entries").insert(entryData).select().single();
+        const { data } = await (supabase as any).from("journal_entries").insert(entryData).select().single();
         if (data) setEntryId(data.id);
       }
       qc.invalidateQueries({ queryKey: ["journal-entries-all"] });
@@ -245,7 +245,7 @@ export default function JournalEntryPage() {
   const handleDelete = async () => {
     if (!window.confirm("Delete this entry? Cannot be undone.")) return;
     if (!entryId || !user) return;
-    await supabase.from("journal_entries").delete().eq("id", entryId).eq("user_id", user.id);
+    await (supabase as any).from("journal_entries").delete().eq("id", entryId).eq("user_id", user.id);
     qc.invalidateQueries({ queryKey: ["journal-entries-all"] });
     navigate("/journal");
     toast("Entry deleted");

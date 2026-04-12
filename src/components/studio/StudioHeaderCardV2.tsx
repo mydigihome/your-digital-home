@@ -112,7 +112,7 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
   }, [studioImages.length]);
 
   const upsertProfile = async (data: any) => {
-    return supabase.from("studio_profile")
+    return (supabase as any).from("studio_profile")
       .upsert({ user_id: user!.id, ...data } as any, { onConflict: "user_id" });
   };
 
@@ -126,10 +126,10 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
     for (const file of files) {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/studio/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage
+      const { error } = await (supabase as any).storage
         .from("user-assets").upload(path, file, { upsert: true });
       if (error) { toast.error("Upload failed: " + error.message); continue; }
-      const { data: u } = supabase.storage.from("user-assets").getPublicUrl(path);
+      const { data: u } = (supabase as any).storage.from("user-assets").getPublicUrl(path);
       if (u?.publicUrl) newUrls.push(u.publicUrl);
     }
     setUploading(false);
@@ -166,9 +166,9 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
     input.onchange = async (ev: any) => {
       const file = ev.target?.files?.[0]; if (!file) return;
       const path = `${user.id}/docs/${doc.key}-${Date.now()}`;
-      const { error } = await supabase.storage.from("user-assets").upload(path, file, { upsert: true });
+      const { error } = await (supabase as any).storage.from("user-assets").upload(path, file, { upsert: true });
       if (error) { toast.error("Upload failed"); return; }
-      const { data: u } = supabase.storage.from("user-assets").getPublicUrl(path);
+      const { data: u } = (supabase as any).storage.from("user-assets").getPublicUrl(path);
       await upsertProfile({ [doc.key]: u.publicUrl });
       setStudioDocs((p: any) => ({ ...p, [doc.key]: u.publicUrl }));
       toast.success(doc.label + " uploaded!");
@@ -235,7 +235,7 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
 
   const handleAddGoal = async () => {
     if (!user || !goalTitle.trim()) return;
-    const { data, error } = await supabase.from("studio_goals").insert({ user_id: user.id, title: goalTitle.trim(), progress: goalProgress, deadline: goalDeadline || null, category: goalCategory } as any).select().single();
+    const { data, error } = await (supabase as any).from("studio_goals").insert({ user_id: user.id, title: goalTitle.trim(), progress: goalProgress, deadline: goalDeadline || null, category: goalCategory } as any).select().single();
     if (error) { toast.error("Failed"); return; }
     setStudioGoals(p => [...p, data]);
     setGoalTitle(""); setGoalProgress(0); setGoalDeadline(""); setGoalCategory("Other");

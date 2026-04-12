@@ -264,7 +264,7 @@ export default function ContactsPage() {
     if (!user) return;
     const selected = importPreviewContacts.filter((_, i) => importSelected.has(i));
     if (selected.length === 0) return;
-    const { error } = await supabase.from("contacts").insert(selected.map(c => ({ ...c, user_id: user.id })) as any);
+    const { error } = await (supabase as any).from("contacts").insert(selected.map(c => ({ ...c, user_id: user.id })) as any);
     if (error) { toast.error("Import failed"); return; }
     toast.success(`${selected.length} contacts imported!`);
     setImportPreviewOpen(false);
@@ -981,7 +981,7 @@ function ExpandedContactRow({ contact, isDark, onEdit, onDelete, onEmail, noteVa
             ].map(opt => (
               <button key={opt.days} onClick={async e => {
                 e.stopPropagation();
-                await supabase.from("contacts").update({ followup_cadence: opt.days } as any).eq("id", contact.id);
+                await (supabase as any).from("contacts").update({ followup_cadence: opt.days } as any).eq("id", contact.id);
                 setLocalContacts(prev => prev.map(c => c.id === contact.id ? { ...c, followup_cadence: opt.days } : c));
               }} style={{
                 padding: "5px 12px", borderRadius: "999px", border: "1.5px solid",
@@ -1016,7 +1016,7 @@ function ExpandedContactRow({ contact, isDark, onEdit, onDelete, onEmail, noteVa
           <button onClick={async e => {
             e.stopPropagation();
             const now = new Date().toISOString();
-            await supabase.from("contacts").update({ last_contacted_date: now } as any).eq("id", contact.id);
+            await (supabase as any).from("contacts").update({ last_contacted_date: now } as any).eq("id", contact.id);
             setLocalContacts(prev => prev.map(c => c.id === contact.id ? { ...c, last_contacted_date: now } : c));
             toast.success("Marked as contacted!");
           }} style={{
@@ -1049,7 +1049,7 @@ function ExpandedContactRow({ contact, isDark, onEdit, onDelete, onEmail, noteVa
             setNoteValues(prev => ({ ...prev, [contact.id]: val }));
             clearTimeout(noteTimers.current[contact.id]);
             noteTimers.current[contact.id] = setTimeout(async () => {
-              await supabase.from("contacts").update({ notes: val } as any).eq("id", contact.id);
+              await (supabase as any).from("contacts").update({ notes: val } as any).eq("id", contact.id);
             }, 1000);
           }}
           onClick={e => e.stopPropagation()}
@@ -1128,14 +1128,14 @@ function TagModal({ isOpen, onClose, contact, isDark, user, setLocalContacts }: 
 
   const addTag = async (tag: string) => {
     const updated = [...(contact.tags || []), tag];
-    await supabase.from("contacts").update({ tags: updated } as any).eq("id", contact.id);
+    await (supabase as any).from("contacts").update({ tags: updated } as any).eq("id", contact.id);
     setLocalContacts(prev => prev.map(c => c.id === contact.id ? { ...c, tags: updated } : c));
     contact.tags = updated; // update ref for modal
   };
 
   const removeTag = async (tag: string) => {
     const updated = (contact.tags || []).filter((t: string) => t !== tag);
-    await supabase.from("contacts").update({ tags: updated } as any).eq("id", contact.id);
+    await (supabase as any).from("contacts").update({ tags: updated } as any).eq("id", contact.id);
     setLocalContacts(prev => prev.map(c => c.id === contact.id ? { ...c, tags: updated } : c));
     contact.tags = updated;
   };
@@ -1506,7 +1506,7 @@ function EmailsTabContent({ contacts, isDark, user }: {
 
   const saveToDrafts = async () => {
     if (!user || !selectedContact || !generatedEmail) return;
-    await supabase.from("email_drafts").insert({
+    await (supabase as any).from("email_drafts").insert({
       user_id: user.id, contact_id: selectedContact.id,
       content: generatedEmail, tone: emailTone,
     } as any);

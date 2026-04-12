@@ -122,7 +122,7 @@ export default function InvestingTab() {
 
   const removeFromWatchlist = async (id: string) => {
     if (!user) return;
-    await supabase.from("watchlist").delete().eq("id", id).eq("user_id", user.id);
+    await (supabase as any).from("watchlist").delete().eq("id", id).eq("user_id", user.id);
     setWatchlist((prev) => prev.filter((w) => w.id !== id));
     toast.success("Removed from watchlist");
   };
@@ -139,7 +139,7 @@ export default function InvestingTab() {
   const confirmOrder = async () => {
     if (!user || !selectedStock) return;
     const qty = parseFloat(quantity);
-    await supabase.from("orders").insert({
+    await (supabase as any).from("orders").insert({
       user_id: user.id,
       symbol: selectedStock.symbol,
       order_type: buySellMode,

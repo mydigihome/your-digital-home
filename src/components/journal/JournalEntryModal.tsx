@@ -166,11 +166,11 @@ export default function JournalEntryModal({ open, onClose, entry, readOnly = fal
     for (const file of Array.from(files)) {
       const ext = file.name.split(".").pop();
       const path = `${(await supabase.auth.getUser()).data.user?.id}/${currentEntryId}/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("journal-media").upload(path, file);
+      const { error } = await (supabase as any).storage.from("journal-media").upload(path, file);
       if (error) { toast.error("Upload failed"); continue; }
 
-      const { data: urlData } = supabase.storage.from("journal-media").getPublicUrl(path);
-      await supabase.from("journal_media").insert({
+      const { data: urlData } = (supabase as any).storage.from("journal-media").getPublicUrl(path);
+      await (supabase as any).from("journal_media").insert({
         entry_id: currentEntryId,
         media_type: file.type.startsWith("video") ? "video" : "image",
         file_url: urlData.publicUrl,
@@ -186,10 +186,10 @@ export default function JournalEntryModal({ open, onClose, entry, readOnly = fal
     const currentEntryId = await ensureEntryId();
     const userId = (await supabase.auth.getUser()).data.user?.id;
     const path = `${userId}/${currentEntryId}/${crypto.randomUUID()}.png`;
-    const { error } = await supabase.storage.from("journal-media").upload(path, blob);
+    const { error } = await (supabase as any).storage.from("journal-media").upload(path, blob);
     if (error) { toast.error("Failed to save"); return; }
-    const { data: urlData } = supabase.storage.from("journal-media").getPublicUrl(path);
-    await supabase.from("journal_media").insert({
+    const { data: urlData } = (supabase as any).storage.from("journal-media").getPublicUrl(path);
+    await (supabase as any).from("journal_media").insert({
       entry_id: currentEntryId,
       media_type: "drawing",
       file_url: urlData.publicUrl,
@@ -200,7 +200,7 @@ export default function JournalEntryModal({ open, onClose, entry, readOnly = fal
 
   const handlePuzzleComplete = async (gameName: string, timeSeconds: number) => {
     const currentEntryId = await ensureEntryId();
-    await supabase.from("journal_activities").insert({
+    await (supabase as any).from("journal_activities").insert({
       entry_id: currentEntryId,
       activity_type: "puzzle",
       activity_data: { game: gameName, time_seconds: timeSeconds },

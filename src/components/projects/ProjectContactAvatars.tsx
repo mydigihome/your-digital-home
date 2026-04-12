@@ -62,7 +62,7 @@ export default function ProjectContactAvatars({ projectId }: { projectId: string
   const { data: allContacts = [] } = useQuery({
     queryKey: ["contacts_for_link", user?.id],
     queryFn: async () => {
-      const { data } = await supabase.from("contacts").select("id, name, photo_url, relationship_type, job_title").eq("user_id", user!.id);
+      const { data } = await (supabase as any).from("contacts").select("id, name, photo_url, relationship_type, job_title").eq("user_id", user!.id);
       return data || [];
     },
     enabled: !!user && showPopover,
@@ -72,7 +72,7 @@ export default function ProjectContactAvatars({ projectId }: { projectId: string
   const filtered = allContacts.filter(c => !searchQ || c.name.toLowerCase().includes(searchQ.toLowerCase()));
 
   const handleLink = async (contactId: string) => {
-    await supabase.from("contact_project_links").insert({ contact_id: contactId, project_id: projectId, relevance_reason: "user_linked" } as any);
+    await (supabase as any).from("contact_project_links").insert({ contact_id: contactId, project_id: projectId, relevance_reason: "user_linked" } as any);
     qc.invalidateQueries({ queryKey: ["contact_project_links", projectId] });
     const c = allContacts.find(x => x.id === contactId);
     toast.success(`${c?.name || "Contact"} linked to this project`);

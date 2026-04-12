@@ -89,7 +89,7 @@ export default function AdminDashboard() {
                   <p className="text-sm font-medium truncate">{u.full_name || 'No name'}</p>
                   <p className="text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</p>
                 </div>
-                <button onClick={async () => { const msg = prompt('Notification message:'); if (!msg) return; await supabase.from('notifications').insert({ user_id: u.id, type: 'system', title: 'Message from Admin', message: msg, read: false }); toast.success('Sent!'); }} className="px-3 py-1 text-xs border border-border rounded-lg hover:bg-accent">Notify</button>
+                <button onClick={async () => { const msg = prompt('Notification message:'); if (!msg) return; await (supabase as any).from('notifications').insert({ user_id: u.id, type: 'system', title: 'Message from Admin', message: msg, read: false }); toast.success('Sent!'); }} className="px-3 py-1 text-xs border border-border rounded-lg hover:bg-accent">Notify</button>
               </div>
             ))}
           </div>

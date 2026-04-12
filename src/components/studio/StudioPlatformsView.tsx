@@ -82,7 +82,7 @@ export default function StudioPlatformsView() {
   const loadStudioProfile = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase.from("studio_profile").select("*").eq("user_id", user.id).maybeSingle();
+    const { data } = await (supabase as any).from("studio_profile").select("*").eq("user_id", user.id).maybeSingle();
     setProfile(data as StudioProfile | null);
     setLoading(false);
   };
@@ -152,7 +152,7 @@ export default function StudioPlatformsView() {
         const { data, error } = await supabase.functions.invoke("fetch-youtube-stats", { body });
         if (error || !data?.channel) { toast.error(data?.error || "Channel not found."); return; }
         const ch = data.channel;
-        await supabase.from("studio_profile").upsert({
+        await (supabase as any).from("studio_profile").upsert({
           user_id: user.id, youtube_handle: ch.handle || input, youtube_channel_id: ch.channel_id,
           youtube_subscribers: ch.subscribers, youtube_total_views: ch.total_views,
           youtube_video_count: ch.video_count, youtube_recent_videos: ch.recent_videos,
@@ -168,7 +168,7 @@ export default function StudioPlatformsView() {
           updateObj.substack_url = connectHandle.includes("http") ? connectHandle : `https://${connectHandle}`;
           delete updateObj.substack_handle; delete updateObj.substack_connected;
         }
-        await supabase.from("studio_profile").upsert(updateObj as any, { onConflict: "user_id" });
+        await (supabase as any).from("studio_profile").upsert(updateObj as any, { onConflict: "user_id" });
         toast.success(`${connectPlatform === "twitterx" ? "Twitter/X" : connectPlatform.charAt(0).toUpperCase() + connectPlatform.slice(1)} saved`);
       }
       setConnectHandle(""); setShowConnect(false);
@@ -189,7 +189,7 @@ export default function StudioPlatformsView() {
     try {
       const urls = profile?.platform_urls || {};
       (urls as any)[activeTab] = profileUrl.trim();
-      await supabase.from("studio_profile").upsert({ user_id: user.id, platform_urls: urls } as any, { onConflict: "user_id" });
+      await (supabase as any).from("studio_profile").upsert({ user_id: user.id, platform_urls: urls } as any, { onConflict: "user_id" });
       toast.success("Profile URL saved");
       await loadStudioProfile();
     } catch { toast.error("Failed to save URL"); }
