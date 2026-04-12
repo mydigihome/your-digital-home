@@ -15,24 +15,63 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes("access_token")) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (!cancelled && session?.user) {
-        navigate("/dashboard", { replace: true });
+        const { data: prefs } = await (supabase as any)
+          .from("user_preferences")
+          .select("onboarding_completed")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        if (!prefs?.onboarding_completed) {
+          navigate("/welcome", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
       }
     };
     check();
-    return () => { cancelled = true; };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user && !cancelled) {
+        const { data: prefs } = await (supabase as any)
+          .from("user_preferences")
+          .select("onboarding_completed")
+          .eq("user_id", session.user.id)
+          .maybeSingle();
+        navigate(!prefs?.onboarding_completed ? "/welcome" : "/dashboard", { replace: true });
+      }
+    });
+    return () => { cancelled = true; subscription.unsubscribe(); };
   }, [navigate]);
 
   useEffect(() => {
     if (user) navigate("/dashboard", { replace: true });
   }, [user, navigate]);
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+    if (error) {
+      toast.error("Google sign-in failed. Please try again.");
+      console.error("Google sign-in error:", error);
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +129,34 @@ export default function Signup() {
             <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>
           </p>
         </form>
+
+        {/* Divider */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center text-xs">
+            <span className="bg-background px-2 text-muted-foreground">or continue with</span>
+          </div>
+        </div>
+
+        {/* Google Sign-Up */}
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-11 gap-2.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading}
+        >
+          <svg width="16" height="16" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 01-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+            <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+            <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+            <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+          </svg>
+          {googleLoading ? "Signing up..." : "Google"}
+        </Button>
+
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link to="/login" className="text-primary hover:underline">Sign in</Link>
