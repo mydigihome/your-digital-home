@@ -37,7 +37,7 @@ export default function MoneyPage() {
 
   const addBill = async () => {
     if (!billForm.name) return;
-    const { error } = await (supabase as any).from("bills").insert({ ...billForm, amount: billForm.amount ? parseFloat(billForm.amount) : null, user_id: user!.id });
+    const { error } = await (supabase as any).from("bills").insert({ name: billForm.name, amount: billForm.amount ? parseFloat(billForm.amount) : null, due_date_proper: billForm.due_date_proper || null, user_id: user!.id });
     if (error) { toast.error("Failed to add bill"); return; }
     toast.success("Bill added");
     setBillForm({ name: "", amount: "", due_date_proper: "" });

@@ -74,7 +74,7 @@ export default function ProjectDetailPage() {
           <ArrowLeft className="h-4 w-4" /> Back to Projects
         </button>
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold">{project.title || project.name}</h1>
+          <h1 className="text-2xl font-semibold">{project.title || project.name || "Untitled"}</h1>
           {project.goal && <p className="text-sm text-muted-foreground mt-1">{project.goal}</p>}
           {project.description && <p className="text-sm text-muted-foreground mt-1">{project.description}</p>}
         </div>
