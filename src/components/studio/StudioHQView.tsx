@@ -147,7 +147,7 @@ export default function StudioHQView() {
     setContentItems(prev => prev.map(c =>
       c.id === contentId ? { ...c, stage: newStage } : c
     ));
-    await supabase.from("content_items").update({
+    await (supabase as any).from("content_items").update({
       stage: newStage, updated_at: new Date().toISOString(),
     }).eq("id", contentId);
     if (newStage === "review") toast.success("Moved to Review");
@@ -157,7 +157,7 @@ export default function StudioHQView() {
   // Create content
   const handleCreateContent = async () => {
     if (!user || !formTitle.trim()) return;
-    const { error } = await supabase.from("content_items").insert({
+    const { error } = await (supabase as any).from("content_items").insert({
       user_id: user.id,
       title: formTitle.trim(),
       platform: formPlatform || null,
@@ -173,7 +173,7 @@ export default function StudioHQView() {
     setNewContentOpen(false);
     toast.success("Content created!");
     // Refresh
-    const { data } = await supabase.from("content_items").select("*")
+    const { data } = await (supabase as any).from("content_items").select("*")
       .eq("user_id", user.id).order("created_at", { ascending: false });
     if (data) setContentItems(data as ContentItem[]);
   };
@@ -184,7 +184,7 @@ export default function StudioHQView() {
     setDetailCard(prev => prev ? { ...prev, [field]: value } : null);
     clearTimeout(captionTimer.current);
     captionTimer.current = setTimeout(async () => {
-      await supabase.from("content_items").update({
+      await (supabase as any).from("content_items").update({
         [field]: value, updated_at: new Date().toISOString(),
       }).eq("id", detailCard.id);
     }, 1000);
@@ -205,19 +205,19 @@ export default function StudioHQView() {
 
   const handleAddComment = async () => {
     if (!user || !detailCard || !newComment.trim()) return;
-    await supabase.from("content_comments").insert({
+    await (supabase as any).from("content_comments").insert({
       content_piece_id: detailCard.id,
       user_id: user.id,
       comment: newComment.trim(),
     });
     setNewComment("");
     // Refresh comments
-    const { data } = await supabase.from("content_comments")
+    const { data } = await (supabase as any).from("content_comments")
       .select("*").eq("content_piece_id", detailCard.id)
       .order("created_at", { ascending: false });
     setDetailComments(data || []);
     // Increment comment count
-    await supabase.from("content_items").update({
+    await (supabase as any).from("content_items").update({
       comment_count: (detailCard.comment_count || 0) + 1,
     }).eq("id", detailCard.id);
     setDetailCard(prev => prev ? { ...prev, comment_count: (prev.comment_count || 0) + 1 } : null);
@@ -235,7 +235,7 @@ export default function StudioHQView() {
 
   const moveIdeaToPipeline = async (idea: Idea) => {
     if (!user) return;
-    await supabase.from("content_items").insert({
+    await (supabase as any).from("content_items").insert({
       user_id: user.id, title: idea.text,
       platform: idea.platform || null,
       content_type: idea.contentType || null,
@@ -243,7 +243,7 @@ export default function StudioHQView() {
     });
     setIdeas(prev => prev.filter(i => i.id !== idea.id));
     toast.success("Moved to Pipeline - Ideas");
-    const { data } = await supabase.from("content_items").select("*")
+    const { data } = await (supabase as any).from("content_items").select("*")
       .eq("user_id", user.id).order("created_at", { ascending: false });
     if (data) setContentItems(data as ContentItem[]);
   };
@@ -251,7 +251,7 @@ export default function StudioHQView() {
   // Invite
   const handleSendInvite = async () => {
     if (!user || !inviteEmail.trim()) return;
-    const { error } = await supabase.from("studio_invites").insert({
+    const { error } = await (supabase as any).from("studio_invites").insert({
       inviter_user_id: user.id,
       invitee_email: inviteEmail.trim(),
       studio_name: "My Studio",
@@ -259,7 +259,7 @@ export default function StudioHQView() {
     });
     if (error) { toast.error("Failed to send invite"); return; }
     setInviteSent(true);
-    const { data: inv } = await supabase.from("studio_invites")
+    const { data: inv } = await (supabase as any).from("studio_invites")
       .select("*").eq("inviter_user_id", user.id)
       .order("created_at", { ascending: false });
     if (inv) setInvites(inv as StudioInvite[]);
@@ -444,7 +444,7 @@ export default function StudioHQView() {
                           onBlur={async e => {
                             const newTitle = e.currentTarget.textContent || "";
                             if (newTitle && newTitle !== card.title) {
-                              await supabase.from("content_items").update({ title: newTitle }).eq("id", card.id);
+                              await (supabase as any).from("content_items").update({ title: newTitle }).eq("id", card.id);
                               setContentItems(prev => prev.map(c => c.id === card.id ? { ...c, title: newTitle } : c));
                             }
                           }}
@@ -543,7 +543,7 @@ export default function StudioHQView() {
                                   ))}
                                   <button onClick={async () => {
                                     if (window.confirm("Delete this content?")) {
-                                      await supabase.from("content_items").delete().eq("id", card.id);
+                                      await (supabase as any).from("content_items").delete().eq("id", card.id);
                                       setContentItems(prev => prev.filter(c => c.id !== card.id));
                                     }
                                     setCardMenuOpen(null);
@@ -1012,7 +1012,7 @@ export default function StudioHQView() {
                         </div>
                         {c.user_id === user?.id && (
                           <button onClick={async () => {
-                            await supabase.from("content_comments").delete().eq("id", c.id);
+                            await (supabase as any).from("content_comments").delete().eq("id", c.id);
                             setDetailComments(prev => prev.filter(x => x.id !== c.id));
                           }} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#D1D5DB", padding: "2px" }}>
                             <Trash2 size={11} />
@@ -1046,7 +1046,7 @@ export default function StudioHQView() {
               {/* Delete button */}
               <button
                 onClick={async () => {
-                  await supabase.from("content_items").delete().eq("id", detailCard.id);
+                  await (supabase as any).from("content_items").delete().eq("id", detailCard.id);
                   setContentItems(prev => prev.filter(c => c.id !== detailCard.id));
                   setDetailCard(null);
                   toast.success("Content deleted");
@@ -1154,7 +1154,7 @@ export default function StudioHQView() {
                         }}>{inv.status === "accepted" ? "Accepted" : "Pending"}</span>
                         <button
                           onClick={async () => {
-                            await supabase.from("studio_invites").delete().eq("id", inv.id);
+                            await (supabase as any).from("studio_invites").delete().eq("id", inv.id);
                             setInvites(prev => prev.filter(i => i.id !== inv.id));
                             toast.success("Invite revoked");
                           }}

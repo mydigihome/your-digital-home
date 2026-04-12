@@ -202,10 +202,10 @@ export default function StudioHeaderCard({ activeTab, onTabChange }: Props) {
       const file = e.target?.files?.[0];
       if (!file) return;
       const filePath = `studio-docs/${user.id}/${doc.key}-${Date.now()}`;
-      const { error } = await supabase.storage.from("studio-documents").upload(filePath, file);
+      const { error } = await (supabase as any).storage.from("studio-documents").upload(filePath, file);
       if (error) { toast.error("Upload failed"); return; }
-      const { data: urlData } = supabase.storage.from("studio-documents").getPublicUrl(filePath);
-      await supabase.from("studio_profile").upsert({
+      const { data: urlData } = (supabase as any).storage.from("studio-documents").getPublicUrl(filePath);
+      await (supabase as any).from("studio_profile").upsert({
         user_id: user.id,
         [doc.key]: urlData.publicUrl,
       }, { onConflict: "user_id" });
@@ -217,7 +217,7 @@ export default function StudioHeaderCard({ activeTab, onTabChange }: Props) {
 
   const handleSaveEin = async () => {
     if (!user || !einValue.trim()) return;
-    await supabase.from("studio_profile").upsert({
+    await (supabase as any).from("studio_profile").upsert({
       user_id: user.id,
       ein_number: einValue.trim(),
     }, { onConflict: "user_id" });
@@ -228,7 +228,7 @@ export default function StudioHeaderCard({ activeTab, onTabChange }: Props) {
 
   const handleSaveSettings = async () => {
     if (!user) return;
-    await supabase.from("studio_profile").upsert({
+    await (supabase as any).from("studio_profile").upsert({
       user_id: user.id,
       studio_name: (formProfile as any).studio_name || null,
       handle: (formProfile as any).handle || null,
@@ -262,7 +262,7 @@ export default function StudioHeaderCard({ activeTab, onTabChange }: Props) {
 
   const handleAddGoal = async () => {
     if (!user || !goalTitle.trim()) return;
-    const { data, error } = await supabase.from("studio_goals").insert({
+    const { data, error } = await (supabase as any).from("studio_goals").insert({
       user_id: user.id,
       title: goalTitle.trim(),
       progress: goalProgress,
@@ -277,7 +277,7 @@ export default function StudioHeaderCard({ activeTab, onTabChange }: Props) {
   };
 
   const handleDeleteGoal = async (id: string) => {
-    await supabase.from("studio_goals").delete().eq("id", id);
+    await (supabase as any).from("studio_goals").delete().eq("id", id);
     setStudioGoals(prev => prev.filter(g => g.id !== id));
     toast.success("Goal removed");
   };
@@ -295,7 +295,7 @@ export default function StudioHeaderCard({ activeTab, onTabChange }: Props) {
       const uniqueName = Date.now() + "-" + Math.random().toString(36).slice(2) + "." + ext;
       const path = user.id + "/studio-images/" + uniqueName;
 
-      const { error: uploadErr } = await supabase.storage
+      const { error: uploadErr } = await (supabase as any).storage
         .from("studio-documents")
         .upload(path, file, { upsert: true });
 
@@ -305,7 +305,7 @@ export default function StudioHeaderCard({ activeTab, onTabChange }: Props) {
         continue;
       }
 
-      const { data: urlData } = supabase.storage
+      const { data: urlData } = (supabase as any).storage
         .from("studio-documents")
         .getPublicUrl(path);
 
@@ -369,7 +369,7 @@ export default function StudioHeaderCard({ activeTab, onTabChange }: Props) {
 
   const handleStatSave = async (key: string, val: number) => {
     if (!user) return;
-    await supabase.from("studio_profile").upsert({ user_id: user.id, [key]: val } as any, { onConflict: "user_id" });
+    await (supabase as any).from("studio_profile").upsert({ user_id: user.id, [key]: val } as any, { onConflict: "user_id" });
     setStudioStats(prev => ({ ...prev, [key]: val }));
     setEditingStat(null);
   };
@@ -564,7 +564,7 @@ export default function StudioHeaderCard({ activeTab, onTabChange }: Props) {
                         label: "Remove Photos", Icon: Trash2, color: "#DC2626",
                         action: async () => {
                           setStudioImages([]);
-                          await supabase.from("studio_profile").upsert({ user_id: user!.id, images: [] as any } as any, { onConflict: "user_id" });
+                          await (supabase as any).from("studio_profile").upsert({ user_id: user!.id, images: [] as any } as any, { onConflict: "user_id" });
                           toast("Photos removed");
                           setStudioMenuOpen(false);
                         },

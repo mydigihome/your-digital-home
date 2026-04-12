@@ -23,9 +23,9 @@ export default function PageHeader({ title, onTitleChange, icon, coverImage, cov
   const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file || !user) return;
     const path = `${user.id}/covers/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("user-assets").upload(path, file);
+    const { error } = await (supabase as any).storage.from("user-assets").upload(path, file);
     if (error) { toast.error("Upload failed"); return; }
-    const { data: { publicUrl } } = supabase.storage.from("user-assets").getPublicUrl(path);
+    const { data: { publicUrl } } = (supabase as any).storage.from("user-assets").getPublicUrl(path);
     onCoverChange?.(publicUrl, "image"); toast.success("Cover updated");
   };
 

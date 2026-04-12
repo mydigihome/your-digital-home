@@ -70,7 +70,7 @@ export default function ProjectFinancialBar({ projectId, projectName, financialG
   const handleSaveGoal = async () => {
     const val = parseFloat(editValue);
     if (!val || val <= 0) { toast.error("Enter a valid amount"); return; }
-    await supabase.from("projects").update({ financial_goal: val, financial_goal_set_by: "user" } as any).eq("id", projectId);
+    await (supabase as any).from("projects").update({ financial_goal: val, financial_goal_set_by: "user" } as any).eq("id", projectId);
     qc.invalidateQueries({ queryKey: ["projects"] });
     setEditing(false);
     toast.success("Goal updated");

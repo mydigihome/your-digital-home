@@ -134,11 +134,11 @@ export default function BillsRecurringCard() {
     try {
       const ext = file.name.split(".").pop();
       const path = `${user.id}/receipts/${billId}.${ext}`;
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError } = await (supabase as any).storage
         .from("user-assets")
         .upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from("user-assets").getPublicUrl(path);
+      const { data: urlData } = (supabase as any).storage.from("user-assets").getPublicUrl(path);
       await updateBill.mutateAsync({ id: billId, receipt_url: urlData.publicUrl } as any);
       toast.success("Receipt uploaded");
     } catch {

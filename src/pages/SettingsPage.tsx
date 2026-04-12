@@ -157,7 +157,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+      const { data: profile } = await (supabase as any).from("profiles").select("*").eq("id", user.id).single();
       setProfileData({
         full_name: profile?.full_name || user?.user_metadata?.full_name || "",
         handle: (profile as any)?.handle || "",
@@ -266,7 +266,7 @@ export default function SettingsPage() {
   const saveProfile = async () => {
     if (!user) return;
     setSaving(true);
-    await supabase.from("profiles").upsert({ id: user.id, full_name: profileData.full_name, updated_at: new Date().toISOString() } as any);
+    await (supabase as any).from("profiles").upsert({ id: user.id, full_name: profileData.full_name, updated_at: new Date().toISOString() } as any);
     if (profileData.email !== user.email) {
       await supabase.auth.updateUser({ email: profileData.email });
     }
@@ -340,7 +340,7 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     const path = `avatars/${user.id}/${Date.now()}`;
-    await supabase.storage.from("avatars").upload(path, file, { upsert: true });
+    await (supabase as any).storage.from("avatars").upload(path, file, { upsert: true });
     const { data: url } = supabase.storage.from("avatars").getPublicUrl(path);
     setAvatarUrl(url.publicUrl);
     await supabase.auth.updateUser({ data: { avatar_url: url.publicUrl } });
@@ -370,7 +370,7 @@ export default function SettingsPage() {
       toast.error("Write something first");
       return;
     }
-    await supabase.from("feedback").insert({
+    await (supabase as any).from("feedback").insert({
       user_id: user.id,
       email: user.email,
       message: feedbackMessage.trim(),

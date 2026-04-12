@@ -154,7 +154,7 @@ export default function Projects() {
     setSelectMode(false);
 
     try {
-      await supabase.from("tasks").delete().in("project_id", idsToDelete);
+      await (supabase as any).from("tasks").delete().in("project_id", idsToDelete);
       const { error } = await supabase
         .from("projects")
         .delete()
@@ -229,7 +229,7 @@ export default function Projects() {
     const count = selectedIds.length;
     try {
       for (const id of selectedIds) {
-        await supabase.from("projects").update({ archived: true }).eq("id", id);
+        await (supabase as any).from("projects").update({ archived: true }).eq("id", id);
       }
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       setSelectedIds([]);
@@ -279,14 +279,14 @@ export default function Projects() {
         end_date: eventData.date || null,
       };
 
-      const { data: newEvent, error } = await supabase.from("projects")
+      const { data: newEvent, error } = await (supabase as any).from("projects")
         .insert(insertData).select().single();
 
       if (error) throw error;
 
       // Try to update extra columns (they may exist now)
       if (eventData.image_url || eventData.location || eventData.host) {
-        await supabase.from("projects").update({
+        await (supabase as any).from("projects").update({
           cover_image: eventData.image_url || null,
           description: eventData.description || null,
         } as any).eq("id", newEvent.id);

@@ -32,9 +32,9 @@ export function EmergencyFundFront() {
     const file = e.target.files?.[0];
     if (!file || !user) return;
     const path = `${user.id}/liquidity-banner.jpg`;
-    const { error } = await supabase.storage.from("user-assets").upload(path, file, { upsert: true });
+    const { error } = await (supabase as any).storage.from("user-assets").upload(path, file, { upsert: true });
     if (error) { toast.error("Upload failed"); return; }
-    const { data: urlData } = supabase.storage.from("user-assets").getPublicUrl(path);
+    const { data: urlData } = (supabase as any).storage.from("user-assets").getPublicUrl(path);
     const url = urlData.publicUrl + "?t=" + Date.now();
     saveCardData("liquidity_banner_url", url);
     toast.success("Image updated");

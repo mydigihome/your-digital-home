@@ -334,7 +334,7 @@ export default function DebtTab() {
   const handleSaveAndOpenUrl = async () => {
     if (!noUrlDebt || !newPaymentUrl) return;
     try {
-      await supabase.from("debts").update({ payment_url: newPaymentUrl }).eq("id", noUrlDebt.id);
+      await (supabase as any).from("debts").update({ payment_url: newPaymentUrl }).eq("id", noUrlDebt.id);
       qc.invalidateQueries({ queryKey: ["debts"] });
       setNoUrlModalOpen(false);
       window.open(newPaymentUrl, '_blank', 'noopener,noreferrer');
@@ -371,7 +371,7 @@ export default function DebtTab() {
         status: "current",
       };
       if (editingDebt) {
-        await supabase.from("debts").update(payload).eq("id", editingDebt.id);
+        await (supabase as any).from("debts").update(payload).eq("id", editingDebt.id);
         qc.invalidateQueries({ queryKey: ["debts"] });
       } else {
         await addDebt.mutateAsync(payload);
