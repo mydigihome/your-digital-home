@@ -4,22 +4,15 @@ import { useAuth } from "@/hooks/useAuth";
 
 export interface Task {
   id: string;
-  project_id: string;
-  user_id: string;
+  project_id: string | null;
+  user_id: string | null;
   title: string;
   description: string | null;
-  status: string;
-  priority: string;
+  status: string | null;
   due_date: string | null;
-  position: number;
-  duration: number | null;
-  min_chunk: number | null;
-  assignee: string | null;
-  labels: string[];
-  blocked_by: string[];
-  auto_scheduled: boolean;
-  created_at: string;
-  updated_at: string;
+  position: number | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export function useTasks(projectId?: string) {
@@ -27,7 +20,7 @@ export function useTasks(projectId?: string) {
   return useQuery({
     queryKey: ["tasks", projectId],
     queryFn: async () => {
-      let q = supabase.from("tasks").select("*").order("position", { ascending: true });
+      let q = (supabase as any).from("tasks").select("*").order("position", { ascending: true });
       if (projectId) q = q.eq("project_id", projectId);
       const { data, error } = await q;
       if (error) throw error;
@@ -42,7 +35,7 @@ export function useAllTasks() {
   return useQuery({
     queryKey: ["tasks", "all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any).from("tasks").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       return data as Task[];
     },
@@ -54,8 +47,8 @@ export function useCreateTask() {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (task: { title: string; project_id: string; description?: string; status?: string; priority?: string; due_date?: string | null; position?: number; duration?: number | null; min_chunk?: number | null; assignee?: string | null; labels?: string[]; auto_scheduled?: boolean }) => {
-      const { data, error } = await supabase
+    mutationFn: async (task: { title: string; project_id: string; description?: string; status?: string; due_date?: string | null; position?: number }) => {
+      const { data, error } = await (supabase as any)
         .from("tasks")
         .insert({ ...task, user_id: user!.id })
         .select()
@@ -82,7 +75,7 @@ export function useDeleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("tasks").delete().eq("id", id);
+      const { error } = await (supabase as any).from("tasks").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
