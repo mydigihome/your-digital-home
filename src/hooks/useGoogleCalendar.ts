@@ -30,12 +30,51 @@ export function useGoogleCalendarConnection() {
 }
 
 export function useConnectGoogleCalendar() {
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.functions.invoke("google-calendar-auth", {});
       if (error) throw error;
       if (data?.url) window.location.href = data.url;
       return data;
     },
+  });
+  return { startConnect: mutation.mutate, connecting: mutation.isPending, ...mutation };
+}
+
+export function useHandleGoogleCallback() {
+  const qc = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: async (code: string) => {
+      const { data, error } = await supabase.functions.invoke("google-calendar-callback", { body: { code } });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["google_calendar_connection"] }),
+  });
+  return { exchangeCode: mutation.mutateAsync, ...mutation };
+}
+
+export function useSyncGoogleCalendar() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke("google-calendar-sync", { body: { user_id: user!.id } });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["calendar_events"] }),
+  });
+}
+
+export function useDisconnectGoogleCalendar() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await (supabase as any).from("google_calendar_connections").delete().eq("user_id", user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["google_calendar_connection"] }),
   });
 }
