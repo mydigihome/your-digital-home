@@ -1,96 +1,149 @@
+/* System font - Inter */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+.linkedin-btn { background-color: #0A66C2 !important; color: #ffffff !important; }
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Mature design system */
+    --background: 210 5% 97%;        /* #F8F9FA */
+    --foreground: 0 0% 5%;           /* #0D0D0D */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;               /* #FFFFFF */
+    --card-foreground: 0 0% 5%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 0 0% 5%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Deep green primary */
+    --primary: 153 42% 30%;           /* #2D6A4F */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 210 5% 94%;          /* #EFEFEF */
+    --secondary-foreground: 0 0% 5%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 210 5% 94%;
+    --muted-foreground: 220 5% 47%;   /* #6B7280 */
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 267 28% 51%;            /* #7B5EA7 */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;         /* #DC2626 */
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --success: 142 64% 34%;           /* #16A34A */
+    --success-foreground: 0 0% 100%;
 
-    --radius: 0.5rem;
+    --warning: 36 100% 57%;           /* #FFB224 */
+    --warning-foreground: 0 0% 5%;
 
-    --sidebar-background: 0 0% 98%;
+    --info: 206 52% 55%;              /* #529CCA */
+    --info-foreground: 0 0% 100%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    --border: 220 9% 90%;             /* #E5E7EB */
+    --input: 220 9% 90%;
+    --ring: 153 42% 30%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    --radius: 0.75rem;
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* Sidebar: charcoal in light mode */
+    --sidebar-background: 240 4% 12%;  /* #1C1C1E */
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 153 42% 30%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 153 30% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 153 42% 30%;
 
-    --sidebar-accent: 240 4.8% 95.9%;
+    --chart-1: 153 42% 30%;
+    --chart-2: 267 28% 51%;
+    --chart-3: 206 52% 55%;
+    --chart-4: 142 64% 34%;
+    --chart-5: 36 100% 57%;
 
-    --sidebar-accent-foreground: 240 5.9% 10%;
+    /* Shadows */
+    --shadow-2xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08);
+    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.08);
+    --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,0.15);
 
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar: 240 4% 12%;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --tracking-normal: 0em;
+    --spacing: 0.25rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 240 2% 7%;            /* #111112 — warm dark charcoal */
+    --foreground: 0 0% 95%;             /* #F2F2F2 */
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 240 3% 11%;                 /* #1C1C1E — warm dark card */
+    --card-foreground: 0 0% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 240 3% 11%;              /* #1C1C1E */
+    --popover-foreground: 0 0% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 153 42% 38%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 240 2% 15%;            /* #252528 */
+    --secondary-foreground: 0 0% 95%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 240 2% 15%;
+    --muted-foreground: 0 0% 95% / 0.5;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 267 28% 40%;
+    --accent-foreground: 267 40% 85%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --success: 142 64% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 36 100% 57%;
+    --warning-foreground: 0 0% 5%;
+
+    --info: 206 52% 55%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 0 0% 100% / 0.08;        /* rgba(255,255,255,0.08) */
+    --input: 240 2% 15%;               /* #252528 */
+    --ring: 153 42% 38%;
+
+    /* Sidebar: near-black in dark mode */
+    --sidebar-background: 240 3% 5%;   /* #0D0D0E */
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 153 42% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 153 30% 18%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 100% / 0.08;
+    --sidebar-ring: 153 42% 38%;
+
+    --chart-1: 153 42% 38%;
+    --chart-2: 267 28% 55%;
+    --chart-3: 206 52% 55%;
+    --chart-4: 142 64% 40%;
+    --chart-5: 36 100% 57%;
+
+    --shadow-2xs: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.3);
+    --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.3);
+    --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,0.4);
+
+    --radius: 0.75rem;
+    --sidebar: 240 3% 11%;
   }
 }
 
@@ -100,6 +153,207 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/80 backdrop-blur-xl;
+  }
+
+  .glass-dark {
+    @apply bg-gray-900/80 backdrop-blur-xl;
+  }
+
+  .progress-bar {
+    @apply relative w-full h-2 bg-secondary rounded-full overflow-hidden;
+  }
+
+  .progress-fill {
+    @apply absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ease-out;
+  }
+}
+
+@layer utilities {
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(90deg, hsl(var(--secondary)) 25%, hsl(var(--muted)) 50%, hsl(var(--secondary)) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  .transition-smooth {
+    @apply transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)];
+  }
+}
+
+#root {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* TipTap editor styles */
+.tiptap {
+  outline: none;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground) / 0.5);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.tiptap ul:not([data-type="taskList"]) {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.tiptap ul:not([data-type="taskList"]) li {
+  margin: 0.15rem 0;
+}
+
+.tiptap ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+}
+
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.tiptap ul[data-type="taskList"] li label {
+  margin-top: 0.15rem;
+}
+
+.tiptap ul[data-type="taskList"] li label input[type="checkbox"] {
+  accent-color: hsl(var(--primary));
+}
+
+@keyframes iconFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.icon-float {
+  animation: iconFloat 3s ease-in-out infinite;
+}
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE APP EXPERIENCE — max-width: 1023px ONLY
+   ══════════════════════════════════════════════════════════ */
+@media (max-width: 1023px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .mobile-main-content {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .mobile-tab-bar nav {
+    box-shadow: 0 -1px 0 hsl(var(--border)), 0 -4px 12px rgba(0,0,0,0.06);
+  }
+
+  .mobile-tab-item {
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-tab-item:active {
+    transform: scale(0.92);
+    transition: transform 0.1s ease;
+  }
+
+  .bg-card {
+    border-radius: 16px !important;
+  }
+
+  .rounded-xl {
+    border-radius: 16px !important;
+  }
+
+  .rounded-lg {
+    border-radius: 14px !important;
+  }
+
+  .shadow-sm, .border {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 2px 8px rgba(0,0,0,0.04);
+  }
+
+  /* Force single column on mobile for common grids */
+  .sm\:grid-cols-2,
+  .sm\:grid-cols-3,
+  .sm\:grid-cols-4,
+  .lg\:grid-cols-3,
+  .lg\:grid-cols-4,
+  .lg\:grid-cols-5 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .grid-cols-2.gap-3,
+  .grid-cols-2.gap-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .mobile-header {
+    height: 52px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  /* Settings sidebar becomes horizontal on mobile */
+  .settings-sidebar-desktop {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .settings-sidebar-mobile {
+    display: none !important;
+  }
+}
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 30s linear infinite;
 }
