@@ -2,30 +2,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export interface QuickTodo {
-  id: string;
-  user_id: string;
-  task: string;
-  completed: boolean;
-  source: string | null;
-  source_id: string | null;
-  created_at: string;
-}
-
 export function useQuickTodos() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["quick_todos", user?.id],
-    enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("quick_todos")
-        .select("*")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: true });
+      const { data, error } = await (supabase as any).from("quick_todos").select("*").eq("user_id", user!.id).order("order");
       if (error) throw error;
-      return data as QuickTodo[];
+      return data || [];
     },
+    enabled: !!user,
   });
 }
 
@@ -33,11 +19,8 @@ export function useAddQuickTodo() {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async ({ text }: { text: string }) => {
-      const { error } = await supabase.from("quick_todos").insert({
-        user_id: user!.id,
-        task: text,
-      });
+    mutationFn: async ({ text, order }: { text: string; order: number }) => {
+      const { error } = await (supabase as any).from("quick_todos").insert({ text, order, user_id: user!.id, completed: false });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["quick_todos"] }),
@@ -47,8 +30,8 @@ export function useAddQuickTodo() {
 export function useUpdateQuickTodo() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; completed?: boolean; task?: string }) => {
-      const { error } = await supabase.from("quick_todos").update(updates).eq("id", id);
+    mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
+      const { error } = await (supabase as any).from("quick_todos").update(data).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["quick_todos"] }),
@@ -59,7 +42,7 @@ export function useDeleteQuickTodo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("quick_todos").delete().eq("id", id);
+      const { error } = await (supabase as any).from("quick_todos").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["quick_todos"] }),

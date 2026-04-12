@@ -2,48 +2,25 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export interface UserFinances {
-  id: string;
-  user_id: string;
-  monthly_income: number;
-  total_debt: number;
-  credit_score: number | null;
-  net_worth: number | null;
-  savings_rate: number | null;
-  emergency_fund: number | null;
-  general_savings: number | null;
-  investments: number | null;
-  savings_goal_annual: number | null;
-  financial_setup_completed: boolean | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export function useUserFinances() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["user_finances", user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("user_finances")
-        .select("*")
-        .eq("user_id", user!.id)
-        .maybeSingle();
+      const { data, error } = await (supabase as any).from("user_finances").select("*").eq("user_id", user!.id).maybeSingle();
       if (error) throw error;
-      return data as UserFinances | null;
+      return data;
     },
     enabled: !!user,
   });
 }
 
-export function useUpsertUserFinances() {
+export function useUpsertFinances() {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (finances: Partial<Omit<UserFinances, "id" | "user_id" | "created_at" | "updated_at">>) => {
-      const { error } = await (supabase as any)
-        .from("user_finances")
-        .upsert({ ...finances, user_id: user!.id }, { onConflict: "user_id" });
+    mutationFn: async (data: any) => {
+      const { error } = await (supabase as any).from("user_finances").upsert({ ...data, user_id: user!.id }, { onConflict: "user_id" });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["user_finances"] }),

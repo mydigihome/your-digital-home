@@ -1,125 +1,39 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
-export interface GoalStage {
-  id: string;
-  project_id: string;
-  name: string;
-  description: string | null;
-  position: number;
-  created_at: string;
-}
-
-export interface GoalTask {
-  id: string;
-  stage_id: string;
-  project_id: string;
-  title: string;
-  completed: boolean;
-  completed_at: string | null;
-  position: number;
-  created_at: string;
-}
-
-export function useGoalStages(projectId: string | undefined) {
+export function useGoals() {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["goal_stages", projectId],
+    queryKey: ["goals", user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("goal_stages")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("position", { ascending: true });
+      const { data, error } = await (supabase as any).from("goals").select("*").eq("user_id", user!.id).order("created_at", { ascending: false });
       if (error) throw error;
-      return data as GoalStage[];
+      return data || [];
     },
-    enabled: !!projectId,
+    enabled: !!user,
   });
 }
 
-export function useGoalTasks(projectId: string | undefined) {
-  return useQuery({
-    queryKey: ["goal_tasks", projectId],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("goal_tasks")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("position", { ascending: true });
+export function useCreateGoal() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (goal: any) => {
+      const { error } = await (supabase as any).from("goals").insert({ ...goal, user_id: user!.id });
       if (error) throw error;
-      return data as GoalTask[];
     },
-    enabled: !!projectId,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
   });
 }
 
-export function useCreateGoalStage() {
+export function useUpdateGoal() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (stage: { project_id: string; name: string; description?: string; position: number }) => {
-      const { data, error } = await (supabase as any)
-        .from("goal_stages")
-        .insert(stage)
-        .select()
-        .single();
-      if (error) throw error;
-      return data as GoalStage;
-    },
-    onSuccess: (data) => qc.invalidateQueries({ queryKey: ["goal_stages", data.project_id] }),
-  });
-}
-
-export function useCreateGoalTask() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (task: { stage_id: string; project_id: string; title: string; position: number }) => {
-      const { error } = await (supabase as any)
-        .from("goal_tasks")
-        .insert(task);
+    mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
+      const { error } = await (supabase as any).from("goals").update(data).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goal_tasks"] }),
-  });
-}
-
-export function useUpdateGoalTask() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<GoalTask> & { id: string }) => {
-      const { error } = await (supabase as any)
-        .from("goal_tasks")
-        .update(updates)
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goal_tasks"] }),
-  });
-}
-
-export function useDeleteGoalStage() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from("goal_stages")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goal_stages"] }),
-  });
-}
-
-export function useDeleteGoalTask() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
-        .from("goal_tasks")
-        .delete()
-        .eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goal_tasks"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
   });
 }

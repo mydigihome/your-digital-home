@@ -1,35 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-
-export interface TemplateTask {
-  title: string;
-  priority: string;
-  status: string;
-}
-
-export interface ProjectTemplate {
-  id: string;
-  name: string;
-  description: string | null;
-  type: string;
-  color: string;
-  tasks: TemplateTask[];
-  created_at: string;
-}
+import { useAuth } from "@/hooks/useAuth";
 
 export function useTemplates() {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["project_templates"],
+    queryKey: ["templates", user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("project_templates")
-        .select("*")
-        .order("name");
+      const { data, error } = await (supabase as any).from("shop_templates").select("*").eq("is_active", true);
       if (error) throw error;
-      return (data as any[]).map((t) => ({
-        ...t,
-        tasks: typeof t.tasks === "string" ? JSON.parse(t.tasks) : t.tasks,
-      })) as ProjectTemplate[];
+      return data || [];
     },
+    enabled: !!user,
   });
 }

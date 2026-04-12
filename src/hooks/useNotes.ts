@@ -2,31 +2,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export interface Note {
-  id: string;
-  user_id: string;
-  title: string;
-  content: any;
-  content_preview: string | null;
-  card_color: string | null;
-  card_opacity: number | null;
-  position: number;
-  created_at: string;
-  updated_at: string;
-}
-
 export function useNotes() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["notes"],
+    queryKey: ["notes", user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("notes")
-        .select("*")
-        .order("position", { ascending: true })
-        .order("created_at", { ascending: false });
+      const { data, error } = await (supabase as any).from("notes").select("*").eq("user_id", user!.id).order("updated_at", { ascending: false });
       if (error) throw error;
-      return data as Note[];
+      return data || [];
     },
     enabled: !!user,
   });
@@ -36,14 +19,9 @@ export function useCreateNote() {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (note: { title?: string; content?: any; content_preview?: string; card_color?: string; card_opacity?: number }) => {
-      const { data, error } = await (supabase as any)
-        .from("notes")
-        .insert({ ...note, user_id: user!.id })
-        .select()
-        .single();
+    mutationFn: async (note: any) => {
+      const { error } = await (supabase as any).from("notes").insert({ ...note, user_id: user!.id });
       if (error) throw error;
-      return data as Note;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notes"] }),
   });
@@ -52,15 +30,9 @@ export function useCreateNote() {
 export function useUpdateNote() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; title?: string; content?: any; content_preview?: string; position?: number; card_color?: string; card_opacity?: number }) => {
-      const { data, error } = await (supabase as any)
-        .from("notes")
-        .update(updates)
-        .eq("id", id)
-        .select()
-        .single();
+    mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
+      const { error } = await (supabase as any).from("notes").update({ ...data, updated_at: new Date().toISOString() }).eq("id", id);
       if (error) throw error;
-      return data as Note;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notes"] }),
   });
@@ -72,19 +44,6 @@ export function useDeleteNote() {
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any).from("notes").delete().eq("id", id);
       if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["notes"] }),
-  });
-}
-
-export function useReorderNotes() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (notes: { id: string; position: number }[]) => {
-      const promises = notes.map(({ id, position }) =>
-        (supabase as any).from("notes").update({ position }).eq("id", id)
-      );
-      await Promise.all(promises);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notes"] }),
   });
