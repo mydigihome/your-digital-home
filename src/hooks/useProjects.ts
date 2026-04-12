@@ -78,7 +78,19 @@ export function useDeleteProject() {
       qc.setQueryData<Project[]>(["projects", user?.id], (old) =>
         old ? old.filter((p) => p.id !== id) : []
       );
+      await (supabase as any).from("goal_tasks").delete().eq("project_id", id);
+      await (supabase as any).from("goal_stages").delete().eq("project_id", id);
       await supabase.from("tasks").delete().eq("project_id", id);
+      const { data: eventDetails } = await supabase.from("event_details").select("id").eq("project_id", id);
+      if (eventDetails && eventDetails.length > 0) {
+        for (const ed of eventDetails) {
+          await (supabase as any).from("event_rsvp_questions").delete().eq("event_id", ed.id);
+          await (supabase as any).from("event_guests").delete().eq("event_id", ed.id);
+        }
+        await supabase.from("event_details").delete().eq("project_id", id);
+      }
+      await (supabase as any).from("documents").delete().eq("project_id", id);
+      await (supabase as any).from("contact_project_links").delete().eq("project_id", id);
       const { error } = await supabase.from("projects").delete().eq("id", id);
       if (error) throw error;
     },
