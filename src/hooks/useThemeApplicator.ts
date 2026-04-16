@@ -23,38 +23,37 @@ function hexToHsl(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
-export function applyThemeOverride(primary: string, secondary?: string) {
-  const root = document.documentElement;
-  const primaryHsl = hexToHsl(primary);
-  root.style.setProperty("--primary", primaryHsl);
-  root.style.setProperty("--ring", primaryHsl);
-  root.style.setProperty("--sidebar-primary", primaryHsl);
-  if (secondary) {
-    const secondaryHsl = hexToHsl(secondary);
-    root.style.setProperty("--secondary", secondaryHsl);
-    root.style.setProperty("--accent", secondaryHsl);
-  }
-  try {
-    localStorage.setItem("dh_accent_color", primary);
-    if (secondary) localStorage.setItem("dh_secondary_color", secondary);
-  } catch {}
+// Exported so SettingsPage can call it directly when user picks a theme
+export function applyThemeOverride(primary: string, secondary: string) {
+  const old = document.getElementById("dh-theme-override");
+  if (old) old.remove();
+  const style = document.createElement("style");
+  style.id = "dh-theme-override";
+  style.innerHTML = `
+    :root { --accent-hex: ${primary}; }
+    .bg-green-400,.bg-green-500,.bg-green-600,.bg-emerald-400,.bg-emerald-500,.bg-emerald-600 { background-color: ${primary} !important; }
+    .text-green-400,.text-green-500,.text-green-600,.text-emerald-400,.text-emerald-500,.text-emerald-600 { color: ${primary} !important; }
+    .border-green-400,.border-green-500,.border-emerald-400,.border-emerald-500 { border-color: ${primary} !important; }
+  `;
+  document.head.appendChild(style);
+  document.documentElement.style.setProperty("--accent-hex", primary);
+  localStorage.setItem("dh_accent", primary);
+  localStorage.setItem("dh_secondary", secondary);
 }
 
 export function useThemeApplicator() {
   const { data: prefs } = useUserPreferences();
   const { user } = useAuth();
 
-  // On mount: apply stored accent, ALWAYS default to light mode
+  // On mount: always start in light mode, apply any saved accent
   useEffect(() => {
-    // Remove dark mode by default
     document.documentElement.classList.remove("dark");
     document.body.classList.remove("dark");
-
     const accent = localStorage.getItem("dh_accent_color") || "#6366f1";
+    const secondary = localStorage.getItem("dh_secondary") || "#7B5EA7";
     const hsl = hexToHsl(accent);
-    const root = document.documentElement;
-    root.style.setProperty("--primary", hsl);
-    root.style.setProperty("--ring", hsl);
+    document.documentElement.style.setProperty("--primary", hsl);
+    document.documentElement.style.setProperty("--ring", hsl);
   }, []);
 
   useEffect(() => {
@@ -69,22 +68,23 @@ export function useThemeApplicator() {
     if (!prefs) return;
     const root = document.documentElement;
 
-    // Dark mode — only apply if explicitly set to true
+    // Dark mode — only if explicitly true
     if (prefs.dark_mode === true) {
       root.classList.add("dark");
       document.body.classList.add("dark");
     } else {
-      // Default: light mode
       root.classList.remove("dark");
       document.body.classList.remove("dark");
     }
 
     // Theme color
     const color = (prefs as any).theme_color || "#6366f1";
+    const secondary = (prefs as any).secondary_color || "#7B5EA7";
     localStorage.setItem("dh_accent_color", color);
     const hsl = hexToHsl(color);
     root.style.setProperty("--primary", hsl);
     root.style.setProperty("--ring", hsl);
     root.style.setProperty("--sidebar-primary", hsl);
+    applyThemeOverride(color, secondary);
   }, [prefs]);
 }
