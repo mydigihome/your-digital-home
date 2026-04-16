@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useUserPreferences, useUpsertPreferences } from "@/hooks/useUserPreferences";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -23,58 +23,51 @@ function hexToHsl(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
-function applyThemeOverride(primary: string, secondary: string) {
-  const old = document.getElementById("dh-theme-override");
-  if (old) old.remove();
-  const style = document.createElement("style");
-  style.id = "dh-theme-override";
-  style.innerHTML = `:root { --accent-hex: ${primary}; }`;
-  document.head.appendChild(style);
-  document.documentElement.style.setProperty("--accent-hex", primary);
-  localStorage.setItem("dh_accent", primary);
-  localStorage.setItem("dh_secondary", secondary);
-}
-
-export { applyThemeOverride };
-
 export function useThemeApplicator() {
   const { data: prefs } = useUserPreferences();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
+  // On mount: apply stored accent, ALWAYS default to light mode
   useEffect(() => {
-    const accent = localStorage.getItem("dh_accent_color") || localStorage.getItem("dh_accent");
-    const secondary = localStorage.getItem("dh_secondary") || "#7B5EA7";
-    if (accent) {
-      const hsl = hexToHsl(accent);
-      const root = document.documentElement;
-      root.style.setProperty("--primary", hsl);
-      root.style.setProperty("--ring", hsl);
-      applyThemeOverride(accent, secondary);
-    }
-    const darkMode = localStorage.getItem("dh-home-theme") || localStorage.getItem("dh_dark_mode");
-    if (darkMode === "dark" || darkMode === "true") document.documentElement.classList.add("dark");
+    // Remove dark mode by default
+    document.documentElement.classList.remove("dark");
+    document.body.classList.remove("dark");
+
+    const accent = localStorage.getItem("dh_accent_color") || "#6366f1";
+    const hsl = hexToHsl(accent);
+    const root = document.documentElement;
+    root.style.setProperty("--primary", hsl);
+    root.style.setProperty("--ring", hsl);
   }, []);
 
   useEffect(() => {
-    if (!user || !prefs) return;
-    (supabase as any).from("user_preferences").update({ last_active_at: new Date().toISOString() }).eq("user_id", user.id).then(() => {});
+    if (!user) return;
+    (supabase as any).from("user_preferences")
+      .update({ last_active_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .then(() => {});
   }, [user?.id]);
 
   useEffect(() => {
     if (!prefs) return;
     const root = document.documentElement;
-    if ((prefs as any).theme_color) {
-      localStorage.setItem("dh_accent_color", (prefs as any).theme_color);
-      const hsl = hexToHsl((prefs as any).theme_color);
-      root.style.setProperty("--primary", hsl);
-      root.style.setProperty("--ring", hsl);
-      const secondary = (prefs as any).secondary_color || localStorage.getItem("dh_secondary") || "#7B5EA7";
-      applyThemeOverride((prefs as any).theme_color, secondary);
-    }
+
+    // Dark mode — only apply if explicitly set to true
     if (prefs.dark_mode === true) {
-      root.classList.add("dark"); document.body.classList.add("dark");
-    } else if (prefs.dark_mode === false) {
-      root.classList.remove("dark"); document.body.classList.remove("dark");
+      root.classList.add("dark");
+      document.body.classList.add("dark");
+    } else {
+      // Default: light mode
+      root.classList.remove("dark");
+      document.body.classList.remove("dark");
     }
+
+    // Theme color
+    const color = (prefs as any).theme_color || "#6366f1";
+    localStorage.setItem("dh_accent_color", color);
+    const hsl = hexToHsl(color);
+    root.style.setProperty("--primary", hsl);
+    root.style.setProperty("--ring", hsl);
+    root.style.setProperty("--sidebar-primary", hsl);
   }, [prefs]);
 }
