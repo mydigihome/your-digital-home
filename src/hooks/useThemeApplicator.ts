@@ -23,6 +23,23 @@ function hexToHsl(hex: string): string {
   return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
 }
 
+export function applyThemeOverride(primary: string, secondary?: string) {
+  const root = document.documentElement;
+  const primaryHsl = hexToHsl(primary);
+  root.style.setProperty("--primary", primaryHsl);
+  root.style.setProperty("--ring", primaryHsl);
+  root.style.setProperty("--sidebar-primary", primaryHsl);
+  if (secondary) {
+    const secondaryHsl = hexToHsl(secondary);
+    root.style.setProperty("--secondary", secondaryHsl);
+    root.style.setProperty("--accent", secondaryHsl);
+  }
+  try {
+    localStorage.setItem("dh_accent_color", primary);
+    if (secondary) localStorage.setItem("dh_secondary_color", secondary);
+  } catch {}
+}
+
 export function useThemeApplicator() {
   const { data: prefs } = useUserPreferences();
   const { user } = useAuth();
