@@ -3,11 +3,7 @@ import { X } from "lucide-react";
 import { useCreateTask } from "@/hooks/useTasks";
 import { toast } from "sonner";
 
-interface Props {
-  projectId: string;
-  defaultStatus?: string;
-  onClose: () => void;
-}
+interface Props { projectId: string; defaultStatus?: string; onClose: () => void; }
 
 export default function TaskEditor({ projectId, defaultStatus = "backlog", onClose }: Props) {
   const [title, setTitle] = useState("");
@@ -17,8 +13,7 @@ export default function TaskEditor({ projectId, defaultStatus = "backlog", onClo
   const handleCreate = async () => {
     if (!title.trim()) { toast.error("Task title is required"); return; }
     await createTask.mutateAsync({ title: title.trim(), project_id: projectId, priority, status: defaultStatus });
-    toast.success("Task created!");
-    onClose();
+    toast.success("Task created!"); onClose();
   };
 
   return (
@@ -39,9 +34,8 @@ export default function TaskEditor({ projectId, defaultStatus = "backlog", onClo
             <option value="low">Low Priority</option>
           </select>
           <div className="flex gap-3 pt-1">
-            <button onClick={onClose} className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">Cancel</button>
-            <button onClick={handleCreate} disabled={createTask.isPending}
-              className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold">
+            <button onClick={onClose} className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium text-foreground">Cancel</button>
+            <button onClick={handleCreate} disabled={createTask.isPending} className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold">
               {createTask.isPending ? "Creating..." : "Add Task"}
             </button>
           </div>

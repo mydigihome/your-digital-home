@@ -6,13 +6,7 @@ export function useOnboardingVideo() {
   return useQuery({
     queryKey: ["onboarding_video"],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("onboarding_video")
-        .select("*")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data } = await (supabase as any).from("onboarding_video").select("*").eq("is_active", true).order("created_at", { ascending: false }).limit(1).maybeSingle();
       return data;
     },
   });
@@ -23,12 +17,7 @@ export function useVideoProgress(videoId?: string) {
   return useQuery({
     queryKey: ["video_progress", videoId, user?.id],
     queryFn: async () => {
-      const { data } = await (supabase as any)
-        .from("onboarding_video_progress")
-        .select("*")
-        .eq("user_id", user!.id)
-        .eq("video_id", videoId)
-        .maybeSingle();
+      const { data } = await (supabase as any).from("onboarding_video_progress").select("*").eq("user_id", user!.id).eq("video_id", videoId).maybeSingle();
       return data;
     },
     enabled: !!user && !!videoId,
@@ -40,13 +29,7 @@ export function useDismissVideo() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (videoId: string) => {
-      await (supabase as any).from("onboarding_video_progress").upsert({
-        user_id: user!.id,
-        video_id: videoId,
-        dismissed: true,
-        watched: true,
-        completed_at: new Date().toISOString(),
-      }, { onConflict: "user_id,video_id" });
+      await (supabase as any).from("onboarding_video_progress").upsert({ user_id: user!.id, video_id: videoId, dismissed: true, watched: true, completed_at: new Date().toISOString() }, { onConflict: "user_id,video_id" });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["video_progress"] }),
   });
@@ -57,23 +40,13 @@ export function useUploadOnboardingVideo() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async ({ file, title }: { file: File; title: string }) => {
-      // Upload to storage
       const ext = file.name.split(".").pop();
       const path = `onboarding/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from("videos")
-        .upload(path, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage.from("videos").upload(path, file, { upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from("videos").getPublicUrl(path);
-      // Deactivate old videos
       await (supabase as any).from("onboarding_video").update({ is_active: false }).eq("is_active", true);
-      // Insert new
-      const { error } = await (supabase as any).from("onboarding_video").insert({
-        video_url: urlData.publicUrl,
-        title,
-        uploaded_by: user!.id,
-        is_active: true,
-      });
+      const { error } = await (supabase as any).from("onboarding_video").insert({ video_url: urlData.publicUrl, title, uploaded_by: user!.id, is_active: true });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["onboarding_video"] }),

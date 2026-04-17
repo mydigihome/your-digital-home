@@ -1,171 +1,176 @@
+/* System font - Inter */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ============================================
-   DIGITAL HOME — GLOBAL STYLES
-   Light mode default, dark mode opt-in
-   ============================================ */
+.linkedin-btn { background-color: #0A66C2 !important; color: #ffffff !important; }
 
 @layer base {
   :root {
-    /* Light mode — all tokens */
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 239 84% 67%;
+    --primary: 153 42% 30%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
+    --secondary: 210 5% 94%;
     --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
+    --muted: 210 5% 94%;
+    --muted-foreground: 220 5% 47%;
+    --accent: 267 28% 51%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 239 84% 67%;
-    --radius: 0.5rem;
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-    --info: 199 89% 48%;
-
-    /* Sidebar — light */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 239 84% 67%;
+    --success: 142 64% 34%;
+    --success-foreground: 0 0% 100%;
+    --warning: 36 100% 57%;
+    --warning-foreground: 0 0% 5%;
+    --info: 206 52% 55%;
+    --info-foreground: 0 0% 100%;
+    --border: 220 9% 90%;
+    --input: 220 9% 90%;
+    --ring: 153 42% 30%;
+    --radius: 0.75rem;
+    --sidebar-background: 240 4% 12%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 153 42% 30%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-accent: 153 30% 20%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 153 42% 30%;
+    --chart-1: 153 42% 30%;
+    --chart-2: 267 28% 51%;
+    --chart-3: 206 52% 55%;
+    --chart-4: 142 64% 34%;
+    --chart-5: 36 100% 57%;
+    --sidebar: 240 4% 12%;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   }
 
   .dark {
-    /* Dark mode — only active when user explicitly enables it */
-    --background: 222 47% 6%;
-    --foreground: 210 40% 96%;
-    --card: 222 47% 9%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 47% 9%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 239 84% 67%;
+    --background: 240 2% 7%;
+    --foreground: 0 0% 95%;
+    --card: 240 3% 11%;
+    --card-foreground: 0 0% 95%;
+    --popover: 240 3% 11%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 153 42% 38%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 210 40% 96%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 96%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 239 84% 67%;
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-    --info: 199 89% 48%;
-
-    /* Sidebar — dark */
-    --sidebar-background: 222 47% 7%;
-    --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 239 84% 67%;
+    --secondary: 240 2% 15%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 240 2% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 267 28% 40%;
+    --accent-foreground: 267 40% 85%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 64% 40%;
+    --success-foreground: 0 0% 100%;
+    --warning: 36 100% 57%;
+    --warning-foreground: 0 0% 5%;
+    --info: 206 52% 55%;
+    --info-foreground: 0 0% 100%;
+    --border: 0 0% 100% / 0.08;
+    --input: 240 2% 15%;
+    --ring: 153 42% 38%;
+    --sidebar-background: 240 3% 5%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 153 42% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 239 84% 67%;
+    --sidebar-accent: 153 30% 18%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 100% / 0.08;
+    --sidebar-ring: 153 42% 38%;
+    --chart-1: 153 42% 38%;
+    --chart-2: 267 28% 55%;
+    --chart-3: 206 52% 55%;
+    --chart-4: 142 64% 40%;
+    --chart-5: 36 100% 57%;
+    --radius: 0.75rem;
+    --sidebar: 240 3% 11%;
   }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
-  html {
-    /* Force light mode at HTML level unless .dark is applied */
-    color-scheme: light;
-  }
-
-  html.dark {
-    color-scheme: dark;
-  }
-
+  * { @apply border-border; }
+  html:not(.dark) { color-scheme: light; }
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Never let the body default to a dark or system theme */
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
   }
-
-  /* Ensure ALL text is readable in light mode */
-  h1, h2, h3, h4, h5, h6, p, span, label, li, a, div {
-    color: inherit;
-  }
-
-  /* Input baseline */
-  input, textarea, select {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    border-color: hsl(var(--border));
-  }
-
-  input::placeholder, textarea::placeholder {
-    color: hsl(var(--muted-foreground));
-  }
+  html { scroll-behavior: smooth; }
 }
 
-/* ============================================
-   UTILITY CLASSES
-   ============================================ */
-
-.text-success { color: hsl(var(--success)); }
-.text-warning { color: hsl(var(--warning)); }
-.text-info    { color: hsl(var(--info)); }
-.bg-success   { background-color: hsl(var(--success)); }
-.bg-warning   { background-color: hsl(var(--warning)); }
-.border-warning { border-color: hsl(var(--warning)); }
-
-/* Scrollbar — clean minimal */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
-
-/* Focus ring */
-*:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 2px;
+@layer components {
+  .glass { @apply bg-white/80 backdrop-blur-xl; }
+  .glass-dark { @apply bg-gray-900/80 backdrop-blur-xl; }
+  .progress-bar { @apply relative w-full h-2 bg-secondary rounded-full overflow-hidden; }
+  .progress-fill { @apply absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ease-out; }
 }
 
-/* Smooth transitions for theme switching */
-body, .bg-background, .bg-card, .bg-sidebar {
-  transition: background-color 200ms ease, color 200ms ease;
+@layer utilities {
+  .text-gradient-primary { @apply bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent; }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  .animate-shimmer {
+    background: linear-gradient(90deg, hsl(var(--secondary)) 25%, hsl(var(--muted)) 50%, hsl(var(--secondary)) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  .transition-smooth { @apply transition-all duration-150 ease-[cubic-bezier(0.4,0,0.2,1)]; }
 }
 
-/* Icon float animation (for onboarding) */
-@keyframes float {
+#root { max-width: 100%; margin: 0; padding: 0; text-align: left; }
+
+.tiptap { outline: none; }
+.tiptap p.is-editor-empty:first-child::before {
+  color: hsl(var(--muted-foreground) / 0.5);
+  content: attr(data-placeholder);
+  float: left; height: 0; pointer-events: none;
+}
+.tiptap ul:not([data-type="taskList"]) { list-style: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+.tiptap ul:not([data-type="taskList"]) li { margin: 0.15rem 0; }
+.tiptap ol { list-style: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+.tiptap ul[data-type="taskList"] { list-style: none; padding: 0; }
+.tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; }
+.tiptap ul[data-type="taskList"] li label { margin-top: 0.15rem; }
+.tiptap ul[data-type="taskList"] li label input[type="checkbox"] { accent-color: hsl(var(--primary)); }
+
+@keyframes iconFloat {
   0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-8px); }
+  50% { transform: translateY(-6px); }
 }
-.icon-float { animation: float 3s ease-in-out infinite; }
+.icon-float { animation: iconFloat 3s ease-in-out infinite; }
 
-/* Animate spin utility */
-.animate-spin { animation: spin 1s linear infinite; }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-/* Mobile tap highlight */
-* { -webkit-tap-highlight-color: transparent; }
-
-/* Remove number input arrows */
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
-input[type=number] { -moz-appearance: textfield; }
+@media (max-width: 1023px) {
+  input, select, textarea { font-size: 16px !important; }
+  button, a, [role="button"] { min-height: 44px; min-width: 44px; }
+  .mobile-main-content {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  .bg-card { border-radius: 16px !important; }
+  .rounded-xl { border-radius: 16px !important; }
+  .rounded-lg { border-radius: 14px !important; }
+  .settings-sidebar-desktop { display: none !important; }
+}
+@media (min-width: 1024px) {
+  .settings-sidebar-mobile { display: none !important; }
+}
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 30s linear infinite; }

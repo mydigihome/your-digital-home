@@ -3,10 +3,7 @@ import { X } from "lucide-react";
 import { useCreateNote } from "@/hooks/useNotes";
 import { toast } from "sonner";
 
-interface Props {
-  open: boolean;
-  onClose: () => void;
-}
+interface Props { open: boolean; onClose: () => void; }
 
 export default function NoteEditor({ open, onClose }: Props) {
   const [title, setTitle] = useState("");
@@ -16,9 +13,7 @@ export default function NoteEditor({ open, onClose }: Props) {
   const handleSave = async () => {
     if (!title.trim() && !content.trim()) { toast.error("Add a title or content"); return; }
     await createNote.mutateAsync({ title: title.trim() || "Untitled Note", content: content.trim() });
-    toast.success("Note saved!");
-    setTitle(""); setContent("");
-    onClose();
+    toast.success("Note saved!"); setTitle(""); setContent(""); onClose();
   };
 
   if (!open) return null;
@@ -35,7 +30,7 @@ export default function NoteEditor({ open, onClose }: Props) {
         <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="Start writing..." rows={5}
           className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-background text-foreground outline-none focus:ring-2 focus:ring-primary resize-none mb-4" />
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium text-foreground">Cancel</button>
           <button onClick={handleSave} className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold">Save Note</button>
         </div>
       </div>

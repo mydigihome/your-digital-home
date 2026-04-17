@@ -1,4 +1,3 @@
-// AdminReminderWidget — shows unread notifications for admin
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,10 +18,7 @@ export default function AdminReminderWidget() {
       .order("created_at", { ascending: false })
       .limit(5)
       .then(({ data }) => {
-        if (data && data.length > 0) {
-          setNotifications(data);
-          setVisible(true);
-        }
+        if (data && data.length > 0) { setNotifications(data); setVisible(true); }
       });
   }, [user?.id]);
 

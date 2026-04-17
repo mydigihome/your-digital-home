@@ -1,4 +1,3 @@
-// localStorage utility helpers
 export function loadStoredJson<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -13,6 +12,6 @@ export function saveStoredJson<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // ignore storage errors
+    // ignore
   }
 }
