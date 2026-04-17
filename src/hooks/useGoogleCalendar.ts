@@ -24,7 +24,6 @@ export function useGoogleCalendarConnection() {
 
 export function useConnectGoogleCalendar() {
   const [connecting, setConnecting] = useState(false);
-
   const startConnect = async () => {
     setConnecting(true);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -37,7 +36,6 @@ export function useConnectGoogleCalendar() {
     });
     if (error) setConnecting(false);
   };
-
   return { startConnect, connecting };
 }
 
@@ -52,5 +50,35 @@ export function useDisconnectGoogleCalendar() {
         .eq("user_id", user!.id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["gcal_connection"] }),
+  });
+}
+
+// Legacy exports — kept for any files that import these
+export function useHandleGoogleCallback() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return async () => {
+    if (!user) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("gcal") === "connected") {
+      await (supabase as any)
+        .from("user_preferences")
+        .update({ google_calendar_connected: true })
+        .eq("user_id", user.id);
+      qc.invalidateQueries({ queryKey: ["gcal_connection"] });
+    }
+  };
+}
+
+export function useSyncGoogleCalendar() {
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      const { data } = await supabase.functions.invoke("sync-google-calendar", {
+        body: { user_id: user.id },
+      });
+      return data;
+    },
   });
 }
