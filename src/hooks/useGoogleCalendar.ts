@@ -1,8 +1,8 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-// Google Calendar connection status
 export function useGoogleCalendarConnection() {
   const { user } = useAuth();
   return useQuery({
@@ -23,13 +23,11 @@ export function useGoogleCalendarConnection() {
 }
 
 export function useConnectGoogleCalendar() {
-  const { user } = useAuth();
-  const [connecting, setConnecting] = require("react").useState(false);
-  
+  const [connecting, setConnecting] = useState(false);
+
   const startConnect = async () => {
     setConnecting(true);
-    // Redirect to Google OAuth for calendar scope
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         scopes: "https://www.googleapis.com/auth/calendar.readonly",
