@@ -1,94 +1,52 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { useCreateTask, useUpdateTask, useDeleteTask, Task } from "@/hooks/useTasks";
-import { useProjects } from "@/hooks/useProjects";
-import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { useState } from "react";
 import { X } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useCreateTask } from "@/hooks/useTasks";
+import { toast } from "sonner";
 
-const statuses = [
-  { value: "backlog", label: "Backlog" },
-  { value: "ready", label: "Ready" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "review", label: "Review" },
-  { value: "done", label: "Done" },
-];
-const priorities = [
-  { value: "low", label: "Low", color: "bg-muted-foreground" },
-  { value: "medium", label: "Medium", color: "bg-warning" },
-  { value: "high", label: "High", color: "bg-destructive" },
-];
+interface Props {
+  projectId: string;
+  defaultStatus?: string;
+  onClose: () => void;
+}
 
-interface Props { task?: Task | null; projectId?: string; defaultStatus?: string; onClose: () => void; }
-
-export default function TaskEditor({ task, projectId, defaultStatus, onClose }: Props) {
-  const [title, setTitle] = useState(task?.title || "");
-  const [description, setDescription] = useState(task?.description || "");
-  const [status, setStatus] = useState(task?.status || defaultStatus || "backlog");
-  const [priority, setPriority] = useState((task as any)?.priority || "medium");
-  const [dueDate, setDueDate] = useState(task?.due_date || "");
-  const [selectedProject, setSelectedProject] = useState(task?.project_id || projectId || "");
+export default function TaskEditor({ projectId, defaultStatus = "backlog", onClose }: Props) {
+  const [title, setTitle] = useState("");
+  const [priority, setPriority] = useState("medium");
   const createTask = useCreateTask();
-  const updateTask = useUpdateTask();
-  const deleteTask = useDeleteTask();
-  const { data: projects = [] } = useProjects();
-  const isNew = !task;
 
-  const handleSave = async () => {
-    if (!title.trim()) { toast.error("Title is required"); return; }
-    try {
-      if (isNew) {
-        if (!selectedProject) { toast.error("Select a project"); return; }
-        await createTask.mutateAsync({ title: title.trim(), description: description.trim() || undefined, status, due_date: dueDate || null, project_id: selectedProject });
-        toast.success("Task created!");
-      } else {
-        await updateTask.mutateAsync({ id: task.id, title: title.trim(), description: description.trim() || null, status, due_date: dueDate || null });
-        toast.success("Task updated!");
-      }
-      onClose();
-    } catch { toast.error("Failed to save task"); }
-  };
-
-  const handleDelete = async () => {
-    if (!task) return;
-    try { await deleteTask.mutateAsync(task.id); toast.success("Task deleted"); onClose(); } catch { toast.error("Failed to delete task"); }
+  const handleCreate = async () => {
+    if (!title.trim()) { toast.error("Task title is required"); return; }
+    await createTask.mutateAsync({ title: title.trim(), project_id: projectId, priority, status: defaultStatus });
+    toast.success("Task created!");
+    onClose();
   };
 
   return (
-    <>
-      <div className="fixed inset-0 z-40 bg-foreground/10" onClick={onClose} />
-      <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ duration: 0.25, ease: "easeInOut" }} className="fixed right-0 top-0 z-50 flex h-full w-full max-w-[420px] flex-col border-l border-border bg-background">
-        <div className="flex items-center justify-between border-b border-border p-4">
-          <h2 className="text-base font-medium">{isNew ? "New Task" : "Edit Task"}</h2>
-          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-md mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-semibold text-foreground">New Task</h3>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg"><X className="w-4 h-4 text-muted-foreground" /></button>
         </div>
-        <div className="flex-1 space-y-4 overflow-y-auto p-4">
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Task title" className="border-0 px-0 text-xl font-medium shadow-none focus-visible:ring-0" autoFocus />
-          <div className="space-y-2"><Label>Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Add details..." rows={3} /></div>
-          {isNew && !projectId && (
-            <div className="space-y-2"><Label>Project</Label>
-              <Select value={selectedProject} onValueChange={setSelectedProject}><SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger><SelectContent>{projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
-            </div>
-          )}
-          <div className="space-y-2"><Label>Status</Label><Select value={status} onValueChange={setStatus}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{statuses.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-2"><Label>Priority</Label><div className="flex gap-2">{priorities.map((p) => <button key={p.value} onClick={() => setPriority(p.value)} className={cn("flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-all", priority === p.value ? "border-primary bg-primary/5" : "border-border")}><div className={cn("h-2 w-2 rounded-full", p.color)} />{p.label}</button>)}</div></div>
-          <div className="space-y-2"><Label>Due date</Label><div className="flex gap-2"><Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />{dueDate && <Button variant="ghost" size="sm" onClick={() => setDueDate("")}>Clear</Button>}</div></div>
+        <div className="space-y-3">
+          <input value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => e.key === "Enter" && handleCreate()}
+            placeholder="What needs to be done?" autoFocus
+            className="w-full px-3 py-2.5 border border-border rounded-lg text-sm bg-background text-foreground outline-none focus:ring-2 focus:ring-primary" />
+          <select value={priority} onChange={e => setPriority(e.target.value)}
+            className="w-full px-3 py-2.5 border border-border rounded-lg text-sm bg-background text-foreground outline-none">
+            <option value="high">High Priority</option>
+            <option value="medium">Medium Priority</option>
+            <option value="low">Low Priority</option>
+          </select>
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose} className="flex-1 py-2.5 border border-border rounded-xl text-sm font-medium">Cancel</button>
+            <button onClick={handleCreate} disabled={createTask.isPending}
+              className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold">
+              {createTask.isPending ? "Creating..." : "Add Task"}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center justify-between border-t border-border p-4">
-          {!isNew ? (
-            <AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" className="text-destructive hover:text-destructive">Delete</Button></AlertDialogTrigger>
-              <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete task?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
-            </AlertDialog>
-          ) : <div />}
-          <Button onClick={handleSave} disabled={createTask.isPending || updateTask.isPending}>Save</Button>
-        </div>
-      </motion.div>
-    </>
+      </div>
+    </div>
   );
 }
