@@ -7,7 +7,11 @@ export function useUserFinances() {
   return useQuery({
     queryKey: ["user_finances", user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("user_finances").select("*").eq("user_id", user!.id).maybeSingle();
+      const { data, error } = await (supabase as any)
+        .from("user_finances")
+        .select("*")
+        .eq("user_id", user!.id)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -20,7 +24,13 @@ export function useUpsertFinances() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await (supabase as any).from("user_finances").upsert({ ...data, user_id: user!.id }, { onConflict: "user_id" });
+      // Map field aliases to actual DB column names
+      const mapped: any = { ...data, user_id: user!.id };
+      // savings_goal -> savings_goal (column now exists after migration)
+      // onboarding_completed -> onboarding_completed (column now exists)
+      const { error } = await (supabase as any)
+        .from("user_finances")
+        .upsert(mapped, { onConflict: "user_id" });
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["user_finances"] }),
