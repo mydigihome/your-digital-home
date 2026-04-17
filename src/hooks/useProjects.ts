@@ -1,28 +1,7 @@
+// useProjects hook
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-
-export interface Project {
-  id: string;
-  user_id: string;
-  name: string;
-  title: string;
-  goal: string | null;
-  type: string;
-  view_preference: string;
-  color: string | null;
-  start_date: string | null;
-  end_date: string | null;
-  icon: string | null;
-  icon_type: string | null;
-  cover_image: string | null;
-  cover_type: string | null;
-  archived: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-const deletedProjectIds = new Set<string>();
 
 export function useProjects() {
   const { user } = useAuth();
@@ -32,10 +11,11 @@ export function useProjects() {
       const { data, error } = await supabase
         .from("projects")
         .select("*")
+        .eq("user_id", user!.id)
         .eq("archived", false)
-        .order("updated_at", { ascending: false });
+        .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data as Project[]).filter(p => !deletedProjectIds.has(p.id));
+      return data || [];
     },
     enabled: !!user,
   });
@@ -45,10 +25,17 @@ export function useCreateProject() {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (project: { name?: string; title?: string; goal?: string; type: string; view_preference: string; start_date?: string; end_date?: string }) => {
+    mutationFn: async (project: {
+      name: string;
+      goal?: string;
+      type?: string;
+      view_preference?: string;
+      start_date?: string;
+      end_date?: string;
+    }) => {
       const { data, error } = await supabase
         .from("projects")
-        .insert({ ...project, title: project.title || project.name || "Untitled", user_id: user!.id } as any)
+        .insert({ ...project, user_id: user!.id, archived: false })
         .select()
         .single();
       if (error) throw error;
@@ -62,7 +49,7 @@ export function useUpdateProject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string; [key: string]: any }) => {
-      const { error } = await (supabase as any).from("projects").update(data).eq("id", id);
+      const { error } = await supabase.from("projects").update(data).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
@@ -71,58 +58,23 @@ export function useUpdateProject() {
 
 export function useDeleteProject() {
   const qc = useQueryClient();
-  const { user } = useAuth();
   return useMutation({
     mutationFn: async (id: string) => {
-      deletedProjectIds.add(id);
-      qc.setQueryData<Project[]>(["projects", user?.id], (old) =>
-        old ? old.filter((p) => p.id !== id) : []
-      );
-      await (supabase as any).from("goal_tasks").delete().eq("project_id", id);
-      await (supabase as any).from("goal_stages").delete().eq("project_id", id);
-      await supabase.from("tasks").delete().eq("project_id", id);
-      const { data: eventDetails } = await supabase.from("event_details").select("id").eq("project_id", id);
-      if (eventDetails && eventDetails.length > 0) {
-        for (const ed of eventDetails) {
-          await (supabase as any).from("event_rsvp_questions").delete().eq("event_id", ed.id);
-          await (supabase as any).from("event_guests").delete().eq("event_id", ed.id);
-        }
-        await supabase.from("event_details").delete().eq("project_id", id);
-      }
-      await (supabase as any).from("documents").delete().eq("project_id", id);
-      await (supabase as any).from("contact_project_links").delete().eq("project_id", id);
       const { error } = await supabase.from("projects").delete().eq("id", id);
       if (error) throw error;
     },
-    onError: (_err, id) => {
-      deletedProjectIds.delete(id);
-      qc.invalidateQueries({ queryKey: ["projects"] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
   });
 }
 
-export function useArchivedProjects() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["archived_projects", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("archived", true)
-        .order("updated_at", { ascending: false });
-      if (error) throw error;
-      return data as Project[];
-    },
-    enabled: !!user,
-  });
-}
-
-export function useRestoreProject() {
+export function useArchiveProject() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("projects").update({ archived: false }).eq("id", id);
+      const { error } = await supabase
+        .from("projects")
+        .update({ archived: true } as any)
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -131,5 +83,3 @@ export function useRestoreProject() {
     },
   });
 }
-
-export { deletedProjectIds };

@@ -2,69 +2,45 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-export function useGoogleCalendar() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["google_calendar", user?.id],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).from("calendar_events").select("*").eq("user_id", user!.id).eq("source", "google").order("start_time");
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user,
-  });
-}
-
+// Google Calendar connection status
 export function useGoogleCalendarConnection() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["google_calendar_connection", user?.id],
+    queryKey: ["gcal_connection", user?.id],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("google_calendar_connections").select("*").eq("user_id", user!.id).maybeSingle();
-      if (error) throw error;
-      return data;
+      const { data } = await (supabase as any)
+        .from("user_preferences")
+        .select("google_calendar_connected, google_calendar_email")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (data?.google_calendar_connected) {
+        return { connected: true, calendar_email: data.google_calendar_email };
+      }
+      return null;
     },
     enabled: !!user,
-    retry: false,
   });
 }
 
 export function useConnectGoogleCalendar() {
-  const mutation = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("google-calendar-auth", {});
-      if (error) throw error;
-      if (data?.url) window.location.href = data.url;
-      return data;
-    },
-  });
-  return { startConnect: mutation.mutate, connecting: mutation.isPending, ...mutation };
-}
-
-export function useHandleGoogleCallback() {
-  const qc = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: async (code: string) => {
-      const { data, error } = await supabase.functions.invoke("google-calendar-callback", { body: { code } });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["google_calendar_connection"] }),
-  });
-  return { exchangeCode: mutation.mutateAsync, ...mutation };
-}
-
-export function useSyncGoogleCalendar() {
-  const qc = useQueryClient();
   const { user } = useAuth();
-  return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("google-calendar-sync", { body: { user_id: user!.id } });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["calendar_events"] }),
-  });
+  const [connecting, setConnecting] = require("react").useState(false);
+  
+  const startConnect = async () => {
+    setConnecting(true);
+    // Redirect to Google OAuth for calendar scope
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        scopes: "https://www.googleapis.com/auth/calendar.readonly",
+        redirectTo: `${window.location.origin}/settings?tab=connections&gcal=connected`,
+        queryParams: { access_type: "offline", prompt: "consent" },
+      },
+    });
+    if (error) setConnecting(false);
+  };
+
+  return { startConnect, connecting };
 }
 
 export function useDisconnectGoogleCalendar() {
@@ -72,9 +48,11 @@ export function useDisconnectGoogleCalendar() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase as any).from("google_calendar_connections").delete().eq("user_id", user!.id);
-      if (error) throw error;
+      await (supabase as any)
+        .from("user_preferences")
+        .update({ google_calendar_connected: false, google_calendar_email: null })
+        .eq("user_id", user!.id);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["google_calendar_connection"] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["gcal_connection"] }),
   });
 }
