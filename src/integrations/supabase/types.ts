@@ -1881,11 +1881,13 @@ export type Database = {
         Row: {
           created_at: string | null
           credit_score: number | null
+          current_savings: number | null
           emergency_fund: number | null
           financial_setup_completed: boolean | null
           general_savings: number | null
           id: string
           investments: number | null
+          monthly_expenses: number | null
           monthly_income: number | null
           net_worth: number | null
           savings_goal_annual: number | null
@@ -1897,11 +1899,13 @@ export type Database = {
         Insert: {
           created_at?: string | null
           credit_score?: number | null
+          current_savings?: number | null
           emergency_fund?: number | null
           financial_setup_completed?: boolean | null
           general_savings?: number | null
           id?: string
           investments?: number | null
+          monthly_expenses?: number | null
           monthly_income?: number | null
           net_worth?: number | null
           savings_goal_annual?: number | null
@@ -1913,11 +1917,13 @@ export type Database = {
         Update: {
           created_at?: string | null
           credit_score?: number | null
+          current_savings?: number | null
           emergency_fund?: number | null
           financial_setup_completed?: boolean | null
           general_savings?: number | null
           id?: string
           investments?: number | null
+          monthly_expenses?: number | null
           monthly_income?: number | null
           net_worth?: number | null
           savings_goal_annual?: number | null
