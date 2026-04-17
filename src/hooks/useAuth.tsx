@@ -2,16 +2,27 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
+interface Profile {
+  full_name: string;
+  founding_member?: boolean;
+  user_number?: number;
+  plan_tier?: string;
+  avatar_url?: string;
+  location?: string;
+  handle?: string;
+}
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  profile: { full_name: string; founding_member?: boolean } | null;
+  profile: Profile | null;
   loading: boolean;
+  refetchProfile: () => Promise<void>;
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
-  updateProfile: (data: { full_name?: string }) => Promise<{ error: any }>;
+  updateProfile: (data: Partial<Profile>) => Promise<{ error: any }>;
   updatePassword: (password: string) => Promise<{ error: any }>;
 }
 
@@ -20,16 +31,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<{ full_name: string; founding_member?: boolean; user_number?: number } | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await (supabase as any)
       .from("profiles")
-      .select("full_name, founding_member, user_number")
+      .select("full_name, founding_member, user_number, plan_tier, avatar_url, location, handle")
       .eq("id", userId)
       .single();
-    setProfile(data);
+    if (data) setProfile(data);
+  };
+
+  const refetchProfile = async () => {
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser) await fetchProfile(currentUser.id);
   };
 
   useEffect(() => {
@@ -49,9 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
+      if (session?.user) fetchProfile(session.user.id);
       setLoading(false);
     });
 
@@ -60,12 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, fullName: string) => {
     const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { full_name: fullName },
-        emailRedirectTo: window.location.origin,
-      },
+      email, password,
+      options: { data: { full_name: fullName }, emailRedirectTo: window.location.origin },
     });
     return { error };
   };
@@ -75,9 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
+  const signOut = async () => { await supabase.auth.signOut(); };
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -86,10 +94,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const updateProfile = async (data: { full_name?: string }) => {
+  const updateProfile = async (data: Partial<Profile>) => {
     if (!user) return { error: new Error("Not authenticated") };
+    // Update profiles table
     const { error } = await (supabase as any).from("profiles").update(data).eq("id", user.id);
-    if (!error) await fetchProfile(user.id);
+    if (!error) {
+      // Also update auth metadata so user.user_metadata.full_name stays in sync
+      if (data.full_name) {
+        await supabase.auth.updateUser({ data: { full_name: data.full_name } });
+      }
+      // Refresh local profile state immediately
+      await fetchProfile(user.id);
+    }
     return { error };
   };
 
@@ -99,9 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{ session, user, profile, loading, signUp, signIn, signOut, resetPassword, updateProfile, updatePassword }}
-    >
+    <AuthContext.Provider value={{ session, user, profile, loading, refetchProfile, signUp, signIn, signOut, resetPassword, updateProfile, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );
