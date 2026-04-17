@@ -110,7 +110,7 @@ export default function AdminTemplates() {
                   <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: t.is_active ? "#F0FDF4" : "#F3F4F6", color: t.is_active ? "#065F46" : "#6B7280" }}>{t.is_active ? "Live" : "Draft"}</span>
                   {t.price > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: "#6366f1" }}>${t.price}</span>}
                 </div>
-                <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>{t.template_type} {t.description ? · + t.description.substring(0, 60) : ""}</p>
+                <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>{t.template_type}{t.description ? " · " + t.description.substring(0, 60) : ""}</p>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={async () => { await (supabase as any).from("shop_templates").update({ is_active: !t.is_active }).eq("id", t.id); setTemplates(p => p.map(x => x.id === t.id ? { ...x, is_active: !x.is_active } : x)); toast.success(t.is_active ? "Set to Draft" : "Published"); }} style={{ padding: "5px 10px", border: "1px solid #E5E7EB", borderRadius: 6, background: "white", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#374151" }}>{t.is_active ? "Unpublish" : "Publish"}</button>
