@@ -1885,14 +1885,20 @@ export type Database = {
           emergency_fund: number | null
           financial_setup_completed: boolean | null
           general_savings: number | null
+          has_student_loans: boolean | null
           id: string
+          investment_types: string[] | null
           investments: number | null
+          invests: boolean | null
           monthly_expenses: number | null
           monthly_income: number | null
           net_worth: number | null
+          onboarding_completed: boolean | null
+          savings_goal: number | null
           savings_goal_annual: number | null
           savings_rate: number | null
           total_debt: number | null
+          total_savings: number | null
           updated_at: string | null
           user_id: string | null
         }
@@ -1903,14 +1909,20 @@ export type Database = {
           emergency_fund?: number | null
           financial_setup_completed?: boolean | null
           general_savings?: number | null
+          has_student_loans?: boolean | null
           id?: string
+          investment_types?: string[] | null
           investments?: number | null
+          invests?: boolean | null
           monthly_expenses?: number | null
           monthly_income?: number | null
           net_worth?: number | null
+          onboarding_completed?: boolean | null
+          savings_goal?: number | null
           savings_goal_annual?: number | null
           savings_rate?: number | null
           total_debt?: number | null
+          total_savings?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -1921,14 +1933,20 @@ export type Database = {
           emergency_fund?: number | null
           financial_setup_completed?: boolean | null
           general_savings?: number | null
+          has_student_loans?: boolean | null
           id?: string
+          investment_types?: string[] | null
           investments?: number | null
+          invests?: boolean | null
           monthly_expenses?: number | null
           monthly_income?: number | null
           net_worth?: number | null
+          onboarding_completed?: boolean | null
+          savings_goal?: number | null
           savings_goal_annual?: number | null
           savings_rate?: number | null
           total_debt?: number | null
+          total_savings?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
