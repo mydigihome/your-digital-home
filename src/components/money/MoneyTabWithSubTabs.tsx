@@ -1,13 +1,14 @@
 import { useState, useCallback } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { BarChart3, CreditCard, TrendingDown, LineChart, Plus, Search, X, EyeOff, Eye, ChevronDown, Landmark, TrendingUp } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { BarChart3, TrendingDown, Plus, Search, X, EyeOff, Eye, ChevronDown, TrendingUp } from "lucide-react";
 import MoneyCard from "./MoneyCard";
 import MoneyOverview from "./overview/MoneyOverview";
 import DebtTab from "./DebtTab";
 import InvestingTab from "./InvestingTab";
+import PlaidConnectButton from "./PlaidConnectButton";
+import PlaidStatusBar from "./PlaidStatusBar";
+import { usePlaidConnection } from "@/hooks/usePlaidConnection";
 import { PlaidBannerFront, PlaidBannerBack } from "./cards/PlaidBanner";
 import { NetWorthFront, NetWorthBack } from "./cards/NetWorthCard";
 import { SpendingFront, SpendingBack } from "./cards/SpendingCard";
@@ -45,7 +46,6 @@ const TABS = [
 
 type TabId = typeof TABS[number]["id"];
 
-// Which cards belong to which tab
 const TAB_CARDS: Record<TabId, string[]> = {
   overview: ["plaid", "net-worth", "savings-rate", "moneyflow", "emergency", "salary"],
   debt: ["debt", "credit-score", "net-worth-history", "refund-tracker"],
@@ -55,46 +55,26 @@ const TAB_CARDS: Record<TabId, string[]> = {
 const FULL_WIDTH = new Set(["plaid", "moneyflow", "tradingview", "subscriptions", "net-worth-history", "category-trends", "cashflow-calendar"]);
 
 const GRID_PAIRS: Record<string, string | undefined> = {
-  "net-worth": "spending",
-  "spending": "net-worth",
-  "debt": "credit-score",
-  "credit-score": "debt",
-  "bills": "emergency",
-  "emergency": "bills",
-  "salary": "savings-rate",
-  "savings-rate": "salary",
-  "investment-portfolio": "tax-estimate",
-  "tax-estimate": "investment-portfolio",
-  "merchant-spending": "refund-tracker",
-  "refund-tracker": "merchant-spending",
-  "large-transactions": "savings-opportunities",
-  "savings-opportunities": "large-transactions",
+  "net-worth": "spending", "spending": "net-worth",
+  "debt": "credit-score", "credit-score": "debt",
+  "bills": "emergency", "emergency": "bills",
+  "salary": "savings-rate", "savings-rate": "salary",
+  "investment-portfolio": "tax-estimate", "tax-estimate": "investment-portfolio",
+  "merchant-spending": "refund-tracker", "refund-tracker": "merchant-spending",
+  "large-transactions": "savings-opportunities", "savings-opportunities": "large-transactions",
   "cashflow": "cashflow",
 };
 
 const CARD_LABELS: Record<string, string> = {
-  plaid: "Bank Connection",
-  "net-worth": "Net Worth",
-  spending: "Spending",
-  debt: "Debt Tracker",
-  "credit-score": "Credit Score",
-  bills: "Bills Calendar",
-  moneyflow: "Money Flow",
-  emergency: "Liquidity Sprints",
-  salary: "Salary",
-  "savings-rate": "Savings Rate",
-  cashflow: "Cashflow",
-  tradingview: "Market Terminal",
-  subscriptions: "Subscription Tracker",
-  "net-worth-history": "Net Worth History",
-  "investment-portfolio": "Investment Portfolio",
-  "tax-estimate": "Tax Estimate",
-  "merchant-spending": "Merchant Spending",
-  "category-trends": "Category Trends",
-  "cashflow-calendar": "Cash Flow Calendar",
-  "refund-tracker": "Refund Tracker",
-  "large-transactions": "Large Transaction Alerts",
-  "savings-opportunities": "Savings Opportunities",
+  plaid: "Bank Connection", "net-worth": "Net Worth", spending: "Spending",
+  debt: "Debt Tracker", "credit-score": "Credit Score", bills: "Bills Calendar",
+  moneyflow: "Money Flow", emergency: "Liquidity Sprints", salary: "Salary",
+  "savings-rate": "Savings Rate", cashflow: "Cashflow", tradingview: "Market Terminal",
+  subscriptions: "Subscription Tracker", "net-worth-history": "Net Worth History",
+  "investment-portfolio": "Investment Portfolio", "tax-estimate": "Tax Estimate",
+  "merchant-spending": "Merchant Spending", "category-trends": "Category Trends",
+  "cashflow-calendar": "Cash Flow Calendar", "refund-tracker": "Refund Tracker",
+  "large-transactions": "Large Transaction Alerts", "savings-opportunities": "Savings Opportunities",
 };
 
 const PREMIUM_CARD_IDS = new Set([
@@ -106,46 +86,17 @@ const PREMIUM_CARD_IDS = new Set([
 function noop() {}
 
 export default function MoneyTabWithSubTabs() {
-  const {
-    cardOrder,
-    hiddenCards,
-    updateCardOrder,
-    hideCard,
-    restoreCard,
-    restoreAll,
-  } = useMoneyPreferences();
+  const { cardOrder, hiddenCards, updateCardOrder, hideCard, restoreCard, restoreAll } = useMoneyPreferences();
   const { isPremium } = usePremiumStatus();
+  // Real Plaid connection state — drives top button + banner
+  const plaid = usePlaidConnection();
 
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [trackFinanceOpen, setTrackFinanceOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [plaidConnected, setPlaidConnected] = useState(false);
-  const [plaidConnecting, setPlaidConnecting] = useState(false);
-  const [plaidAccountName, setPlaidAccountName] = useState("");
 
-  const handleConnectBank = async () => {
-    setPlaidConnecting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("plaid-link-token", {
-        body: { user_id: "demo" },
-      });
-      // Simulate success since Plaid credentials may not be configured
-      setTimeout(() => {
-        setPlaidConnecting(false);
-        setPlaidConnected(true);
-        setPlaidAccountName("Chase Checking");
-        toast.success("Bank connected");
-      }, 1500);
-    } catch {
-      setPlaidConnecting(false);
-      toast.error("Connection failed. Try again.");
-    }
-  };
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const handleDragEnd = useCallback((e: DragEndEvent) => {
     const { active, over } = e;
@@ -157,8 +108,7 @@ export default function MoneyTabWithSubTabs() {
   }, [cardOrder, updateCardOrder]);
 
   const handleAddCards = useCallback((ids: string[]) => {
-    const newOrder = [...cardOrder, ...ids.filter(id => !cardOrder.includes(id))];
-    updateCardOrder(newOrder);
+    updateCardOrder([...cardOrder, ...ids.filter(id => !cardOrder.includes(id))]);
   }, [cardOrder, updateCardOrder]);
 
   const cardMap: Record<string, { front: React.ReactNode; back: React.ReactNode }> = {
@@ -186,43 +136,29 @@ export default function MoneyTabWithSubTabs() {
     "savings-opportunities": { front: <SavingsOpportunitiesFront />, back: <SavingsOpportunitiesBack onCancel={noop} onSave={noop} /> },
   };
 
-  // Filter cards for active tab
   const tabCardIds = TAB_CARDS[activeTab];
-  const visibleOrder = cardOrder
-    .filter(id => tabCardIds.includes(id) && !hiddenCards.includes(id));
-
-  // Also include tab cards not yet in cardOrder
+  const visibleOrder = cardOrder.filter(id => tabCardIds.includes(id) && !hiddenCards.includes(id));
   const extraCards = tabCardIds.filter(id => !cardOrder.includes(id) && !hiddenCards.includes(id));
   const allVisible = [...visibleOrder, ...extraCards];
-
-  // Hidden cards for current tab
   const tabHiddenCards = hiddenCards.filter(id => tabCardIds.includes(id));
 
-  // Build rows
   const rows: string[][] = [];
   const placed = new Set<string>();
   for (const id of allVisible) {
     if (placed.has(id)) continue;
-    if (FULL_WIDTH.has(id)) {
-      rows.push([id]);
-      placed.add(id);
-    } else {
+    if (FULL_WIDTH.has(id)) { rows.push([id]); placed.add(id); }
+    else {
       const pair = GRID_PAIRS[id];
       if (pair && pair !== id && !placed.has(pair) && allVisible.includes(pair)) {
-        rows.push([id, pair]);
-        placed.add(id);
-        placed.add(pair);
-      } else {
-        rows.push([id]);
-        placed.add(id);
-      }
+        rows.push([id, pair]); placed.add(id); placed.add(pair);
+      } else { rows.push([id]); placed.add(id); }
     }
   }
 
   return (
     <div className="money-tab-root">
       <div className="money-tab-stack">
-        {/* Header */}
+        {/* Header row: title + real Plaid button */}
         <div className="mb-2">
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
@@ -230,99 +166,45 @@ export default function MoneyTabWithSubTabs() {
               <p className="text-sm text-muted-foreground mt-1">Your complete financial picture</p>
             </div>
             <div className="flex items-center gap-2">
-              {plaidConnected ? (
-                <span className="flex items-center gap-2 border border-primary/30 text-primary rounded-xl px-4 py-2.5 text-sm font-semibold bg-primary/5">
-                  <Landmark className="w-4 h-4" />
-                  {plaidAccountName || "Bank Connected"}
-                </span>
-              ) : (
-                <button
-                  onClick={handleConnectBank}
-                  disabled={plaidConnecting}
-                  className="flex items-center gap-2 border border-border text-foreground rounded-xl px-4 py-2.5 text-sm font-semibold transition hover:bg-muted"
-                >
-                  {plaidConnecting ? (
-                    <>
-                      <span className="w-4 h-4 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <Landmark className="w-4 h-4" />
-                      Connect Bank
-                    </>
-                  )}
-                </button>
-              )}
+              {/* Real Plaid button — reflects actual connection state */}
+              <PlaidConnectButton />
               {activeTab !== "overview" && (
                 <button
                   onClick={() => setTrackFinanceOpen(true)}
                   className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200"
                 >
-                  <Plus className="w-4 h-4" />
-                  Add Card
+                  <Plus className="w-4 h-4" /> Add Card
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Plaid connection banner */}
-        {!plaidConnected && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800 p-4 flex items-center justify-between flex-wrap gap-3 mb-2">
-            <div className="flex items-center gap-3">
-              <Landmark className="w-5 h-5 text-amber-600" />
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-                Connect your bank to auto-track spending and net worth.
-              </p>
-            </div>
-            <button
-              onClick={handleConnectBank}
-              disabled={plaidConnecting}
-              className="rounded-lg px-4 py-2 text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition border-none cursor-pointer"
-            >
-              {plaidConnecting ? "Connecting..." : "Connect Now"}
-            </button>
-          </div>
-        )}
+        {/* Real Plaid status bar — shows connect/disconnect/reconnect/sync across all tabs */}
+        <PlaidStatusBar />
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 mb-4">
           <div className="flex items-center border-b border-border">
             {TABS.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 -mb-px ${
-                  activeTab === tab.id
-                    ? "border-success text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
+                  activeTab === tab.id ? "border-success text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}>
                 {tab.label}
               </button>
             ))}
           </div>
-
           {activeTab !== "overview" && (
             <div className="flex-1 flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 ml-2">
               <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search cards..."
-                className="bg-transparent border-none outline-none text-sm text-foreground w-full placeholder:text-muted-foreground"
-              />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="bg-transparent border-none cursor-pointer">
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              )}
+              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search cards..."
+                className="bg-transparent border-none outline-none text-sm text-foreground w-full placeholder:text-muted-foreground" />
+              {searchQuery && <button onClick={() => setSearchQuery("")}><X className="w-4 h-4 text-muted-foreground" /></button>}
             </div>
           )}
         </div>
 
-        {/* Overview tab → new layout */}
         {activeTab === "overview" ? (
           <MoneyOverview />
         ) : activeTab === "debt" ? (
@@ -331,14 +213,9 @@ export default function MoneyTabWithSubTabs() {
           <InvestingTab />
         ) : (
           <>
-            {/* Hidden cards restore drawer */}
             {tabHiddenCards.length > 0 && (
               <div className="money-card" style={{ padding: 0 }}>
-                <button
-                  onClick={() => setDrawerOpen(!drawerOpen)}
-                  className="w-full flex items-center justify-between"
-                  style={{ padding: "10px 20px", background: "none", border: "none", cursor: "pointer" }}
-                >
+                <button onClick={() => setDrawerOpen(!drawerOpen)} className="w-full flex items-center justify-between" style={{ padding: "10px 20px", background: "none", border: "none", cursor: "pointer" }}>
                   <div className="flex items-center gap-2">
                     <EyeOff className="w-4 h-4 text-muted-foreground" />
                     <span className="text-sm font-semibold text-foreground">{tabHiddenCards.length} hidden card{tabHiddenCards.length > 1 ? "s" : ""}</span>
@@ -347,12 +224,11 @@ export default function MoneyTabWithSubTabs() {
                     Manage <ChevronDown className={`w-3.5 h-3.5 transition-transform ${drawerOpen ? "rotate-180" : ""}`} />
                   </span>
                 </button>
-                <div className="overflow-hidden transition-all duration-300 ease-in-out" style={{ maxHeight: drawerOpen ? 200 : 0 }}>
+                <div className="overflow-hidden transition-all duration-300" style={{ maxHeight: drawerOpen ? 200 : 0 }}>
                   <div className="flex flex-wrap gap-2" style={{ padding: "0 20px 12px" }}>
                     {tabHiddenCards.map(id => (
                       <button key={id} onClick={() => restoreCard(id)} className="flex items-center gap-2 rounded-full text-sm font-semibold border-none cursor-pointer bg-muted text-foreground" style={{ padding: "6px 16px" }}>
-                        {CARD_LABELS[id] || id}
-                        <Eye className="w-3.5 h-3.5 text-primary" />
+                        {CARD_LABELS[id] || id} <Eye className="w-3.5 h-3.5 text-primary" />
                       </button>
                     ))}
                     <button onClick={restoreAll} className="text-sm font-semibold underline text-primary bg-transparent border-none cursor-pointer">Restore All</button>
@@ -361,12 +237,11 @@ export default function MoneyTabWithSubTabs() {
               </div>
             )}
 
-            {/* Cards Grid */}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={allVisible} strategy={verticalListSortingStrategy}>
                 {rows.map((row, ri) => (
                   <div key={ri} className={`money-tab-row${row.length === 1 ? " full-width" : ""}`}>
-                    {row.map((id) => {
+                    {row.map(id => {
                       const c = cardMap[id];
                       if (!c) return null;
                       const isSearchDimmed = searchQuery && !(CARD_LABELS[id] || id).toLowerCase().includes(searchQuery.toLowerCase());
@@ -391,8 +266,8 @@ export default function MoneyTabWithSubTabs() {
             {allVisible.length === 0 && (
               <div className="money-card flex flex-col items-center justify-center py-12 text-center">
                 <p className="text-lg font-semibold text-foreground mb-1">No cards in this tab</p>
-                <p className="text-sm text-muted-foreground mb-4">Add cards or restore hidden ones to see your data here</p>
-                <button onClick={() => setTrackFinanceOpen(true)} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-5 py-2.5 text-sm font-semibold transition-all">
+                <p className="text-sm text-muted-foreground mb-4">Add cards or restore hidden ones</p>
+                <button onClick={() => setTrackFinanceOpen(true)} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-5 py-2.5 text-sm font-semibold">
                   <Plus className="w-4 h-4" /> Add Card
                 </button>
               </div>
@@ -406,7 +281,7 @@ export default function MoneyTabWithSubTabs() {
         onClose={() => setTrackFinanceOpen(false)}
         existingCardIds={cardOrder}
         onAddCards={handleAddCards}
-        plaidConnected={plaidConnected}
+        plaidConnected={plaid.isConnected}
       />
     </div>
   );
