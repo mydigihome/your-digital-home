@@ -7,13 +7,24 @@ import StudioDealsView from "@/components/studio/StudioDealsView";
 import StudioRevenueView from "@/components/studio/StudioRevenueView";
 import StudioHeaderCard from "@/components/studio/StudioHeaderCardV2";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { usePlan } from "@/hooks/usePlan";
-import LockedFeature from "@/components/LockedFeature";
+import { useAuth } from "@/hooks/useAuth";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 
 export default function StudioPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const isMobile = useIsMobile();
-  const { studioUnlocked, isLoading: planLoading } = usePlan();
+  const { user } = useAuth();
+  const { data: prefs } = useUserPreferences();
+
+  // Admin always has studio unlocked
+  const isAdmin = user?.email === "myslimher@gmail.com";
+  // Check user prefs for studio unlock
+  const studioUnlocked = isAdmin
+    || (prefs as any)?.studio_unlocked === true
+    || (prefs as any)?.is_subscribed === true
+    || (prefs as any)?.plan_tier === "pro"
+    || (prefs as any)?.plan_tier === "standard"
+    || (prefs as any)?.plan_tier === "founding";
 
   const renderContent = () => {
     switch (activeTab) {
@@ -34,7 +45,6 @@ export default function StudioPage() {
       <div className="h-full flex flex-col" style={{ fontFamily: "Inter, sans-serif" }}>
         <div className="flex-1 overflow-auto p-4 sm:p-6 bg-background">
           <StudioHeaderCard activeTab={activeTab} onTabChange={setActiveTab} />
-          {/* Standalone pill tabs */}
           <div style={{
             display: "flex",
             justifyContent: isMobile ? "flex-start" : "center",
@@ -54,15 +64,9 @@ export default function StudioPage() {
                     padding: "7px 18px",
                     borderRadius: "999px",
                     border: "1px solid",
-                    borderColor: isActive
-                      ? "#10B981"
-                      : (isDark ? "rgba(255,255,255,0.15)" : "#E5E7EB"),
-                    background: isActive
-                      ? "#10B981"
-                      : (isDark ? "transparent" : "white"),
-                    color: isActive
-                      ? "white"
-                      : (isDark ? "rgba(255,255,255,0.6)" : "#374151"),
+                    borderColor: isActive ? "#10B981" : (isDark ? "rgba(255,255,255,0.15)" : "#E5E7EB"),
+                    background: isActive ? "#10B981" : (isDark ? "transparent" : "white"),
+                    color: isActive ? "white" : (isDark ? "rgba(255,255,255,0.6)" : "#374151"),
                     fontSize: "13px",
                     fontWeight: isActive ? 600 : 400,
                     cursor: "pointer",
@@ -72,31 +76,43 @@ export default function StudioPage() {
                     whiteSpace: "nowrap",
                     flexShrink: 0,
                   }}
-                  onMouseEnter={e => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLButtonElement).style.background = isDark ? "rgba(16,185,129,0.1)" : "#F0FDF4";
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = "#10B981";
-                      (e.currentTarget as HTMLButtonElement).style.color = isDark ? "#10B981" : "#065F46";
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!isActive) {
-                      (e.currentTarget as HTMLButtonElement).style.background = isDark ? "transparent" : "white";
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = isDark ? "rgba(255,255,255,0.15)" : "#E5E7EB";
-                      (e.currentTarget as HTMLButtonElement).style.color = isDark ? "rgba(255,255,255,0.6)" : "#374151";
-                    }
-                  }}>
+                >
                   {tab}
                 </button>
               );
             })}
           </div>
-          {studioUnlocked || planLoading ? (
+
+          {/* Admin and unlocked users see content directly, others see locked overlay */}
+          {studioUnlocked ? (
             renderContent()
           ) : (
-            <LockedFeature feature="studio">
-              {renderContent()}
-            </LockedFeature>
+            <div style={{ position: "relative" }}>
+              <div style={{ filter: "blur(6px)", pointerEvents: "none", userSelect: "none" }}>
+                {renderContent()}
+              </div>
+              <div style={{
+                position: "absolute", inset: 0, display: "flex",
+                alignItems: "center", justifyContent: "center",
+                background: "rgba(255,255,255,0.85)", backdropFilter: "blur(8px)", zIndex: 10,
+              }}>
+                <div style={{
+                  background: "white", borderRadius: 20, padding: 32,
+                  maxWidth: 380, width: "90%", boxShadow: "0 20px 60px rgba(0,0,0,0.12)",
+                  textAlign: "center", fontFamily: "Inter, sans-serif",
+                }}>
+                  <p style={{ fontSize: 20, fontWeight: 700, color: "#111827", marginBottom: 8 }}>Unlock Studio</p>
+                  <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 20 }}>Your creator HQ. One-time payment, yours forever.</p>
+                  <p style={{ fontSize: 18, fontWeight: 800, color: "#111827", marginBottom: 16 }}>$29.99 one-time</p>
+                  <button
+                    onClick={() => window.location.href = "https://buy.stripe.com/7sY7sL9FUagu4T2fKiak004"}
+                    style={{ width: "100%", padding: 13, background: "#7B5EA7", color: "white", border: "none", borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: "pointer" }}
+                  >
+                    Unlock Studio
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

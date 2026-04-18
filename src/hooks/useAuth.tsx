@@ -99,11 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Update profiles table
     const { error } = await (supabase as any).from("profiles").update(data).eq("id", user.id);
     if (!error) {
-      // Also update auth metadata so user.user_metadata.full_name stays in sync
+      // Sync full_name into auth metadata immediately
       if (data.full_name) {
         await supabase.auth.updateUser({ data: { full_name: data.full_name } });
       }
-      // Refresh local profile state immediately
+      // Refresh local profile state immediately — this triggers re-renders everywhere
       await fetchProfile(user.id);
     }
     return { error };
