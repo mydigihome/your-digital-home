@@ -1,13 +1,12 @@
 import { useState, useCallback } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { BarChart3, TrendingDown, Plus, Search, X, EyeOff, Eye, ChevronDown, TrendingUp } from "lucide-react";
+import { BarChart3, TrendingDown, Plus, Search, X, EyeOff, Eye, ChevronDown, TrendingUp, FileSpreadsheet, Sparkles } from "lucide-react";
 import MoneyCard from "./MoneyCard";
 import MoneyOverview from "./overview/MoneyOverview";
 import DebtTab from "./DebtTab";
 import InvestingTab from "./InvestingTab";
 import PlaidConnectButton from "./PlaidConnectButton";
-import PlaidStatusBar from "./PlaidStatusBar";
 import { usePlaidConnection } from "@/hooks/usePlaidConnection";
 import { PlaidBannerFront, PlaidBannerBack } from "./cards/PlaidBanner";
 import { NetWorthFront, NetWorthBack } from "./cards/NetWorthCard";
@@ -85,16 +84,36 @@ const PREMIUM_CARD_IDS = new Set([
 
 function noop() {}
 
+// Icon circle button for top-right toolbar
+function MoneyToolButton({ icon: Icon, label, color, onClick }: { icon: any; label: string; color: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      className="flex flex-col items-center gap-1 group"
+    >
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-transform group-hover:scale-110 border border-white/20"
+        style={{ background: color }}
+      >
+        <Icon className="w-5 h-5 text-white" />
+      </div>
+      <span className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">{label}</span>
+    </button>
+  );
+}
+
 export default function MoneyTabWithSubTabs() {
   const { cardOrder, hiddenCards, updateCardOrder, hideCard, restoreCard, restoreAll } = useMoneyPreferences();
   const { isPremium } = usePremiumStatus();
-  // Real Plaid connection state — drives top button + banner
   const plaid = usePlaidConnection();
 
   const [activeTab, setActiveTab] = useState<TabId>("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [trackFinanceOpen, setTrackFinanceOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // State to scroll to / open tools in Overview
+  const [focusTool, setFocusTool] = useState<"doc" | "tax" | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -155,33 +174,54 @@ export default function MoneyTabWithSubTabs() {
     }
   }
 
+  // Scroll to tool section when circle icon is clicked
+  const handleToolClick = (tool: "doc" | "tax") => {
+    if (activeTab !== "overview") setActiveTab("overview");
+    setFocusTool(tool);
+    setTimeout(() => {
+      const id = tool === "doc" ? "money-doc-upload" : "money-tax-tracker";
+      const el = document.getElementById(id);
+      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); el.classList.add("ring-2", "ring-violet-400"); setTimeout(() => el.classList.remove("ring-2", "ring-violet-400"), 1500); }
+    }, 100);
+  };
+
   return (
     <div className="money-tab-root">
       <div className="money-tab-stack">
-        {/* Header row: title + real Plaid button */}
-        <div className="mb-2">
-          <div className="flex items-start justify-between flex-wrap gap-4">
+        {/* Header row */}
+        <div className="mb-4">
+          <div className="flex items-start justify-between flex-wrap gap-3">
             <div>
               <h1 className="text-[28px] font-bold text-foreground tracking-tight">Money</h1>
-              <p className="text-sm text-muted-foreground mt-1">Your complete financial picture</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Your complete financial picture</p>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Real Plaid button — reflects actual connection state */}
+            {/* Right side: tool circle icons + connect button */}
+            <div className="flex items-center gap-4">
+              {/* AI Doc Upload icon */}
+              <MoneyToolButton
+                icon={Sparkles}
+                label="Import"
+                color="#7C3AED"
+                onClick={() => handleToolClick("doc")}
+              />
+              {/* Tax Tracker icon */}
+              <MoneyToolButton
+                icon={FileSpreadsheet}
+                label="Receipts"
+                color="#D97706"
+                onClick={() => handleToolClick("tax")}
+              />
+              {/* Real Plaid connect button */}
               <PlaidConnectButton />
               {activeTab !== "overview" && (
-                <button
-                  onClick={() => setTrackFinanceOpen(true)}
-                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200"
-                >
+                <button onClick={() => setTrackFinanceOpen(true)}
+                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-5 py-2.5 text-sm font-semibold transition-all">
                   <Plus className="w-4 h-4" /> Add Card
                 </button>
               )}
             </div>
           </div>
         </div>
-
-        {/* Real Plaid status bar — shows connect/disconnect/reconnect/sync across all tabs */}
-        <PlaidStatusBar />
 
         {/* Tab Navigation */}
         <div className="flex items-center gap-2 mb-4">
@@ -190,9 +230,7 @@ export default function MoneyTabWithSubTabs() {
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 -mb-px ${
                   activeTab === tab.id ? "border-success text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}>
-                {tab.label}
-              </button>
+                }`}>{tab.label}</button>
             ))}
           </div>
           {activeTab !== "overview" && (
@@ -206,7 +244,10 @@ export default function MoneyTabWithSubTabs() {
         </div>
 
         {activeTab === "overview" ? (
-          <MoneyOverview />
+          // Wrap overview content with anchored IDs for scroll-to
+          <div>
+            <MoneyOverview />
+          </div>
         ) : activeTab === "debt" ? (
           <DebtTab />
         ) : activeTab === "investing" ? (
@@ -216,45 +257,28 @@ export default function MoneyTabWithSubTabs() {
             {tabHiddenCards.length > 0 && (
               <div className="money-card" style={{ padding: 0 }}>
                 <button onClick={() => setDrawerOpen(!drawerOpen)} className="w-full flex items-center justify-between" style={{ padding: "10px 20px", background: "none", border: "none", cursor: "pointer" }}>
-                  <div className="flex items-center gap-2">
-                    <EyeOff className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-semibold text-foreground">{tabHiddenCards.length} hidden card{tabHiddenCards.length > 1 ? "s" : ""}</span>
-                  </div>
-                  <span className="text-sm font-semibold flex items-center gap-1 text-primary">
-                    Manage <ChevronDown className={`w-3.5 h-3.5 transition-transform ${drawerOpen ? "rotate-180" : ""}`} />
-                  </span>
+                  <div className="flex items-center gap-2"><EyeOff className="w-4 h-4 text-muted-foreground" /><span className="text-sm font-semibold text-foreground">{tabHiddenCards.length} hidden card{tabHiddenCards.length > 1 ? "s" : ""}</span></div>
+                  <span className="text-sm font-semibold flex items-center gap-1 text-primary">Manage <ChevronDown className={`w-3.5 h-3.5 transition-transform ${drawerOpen ? "rotate-180" : ""}`} /></span>
                 </button>
                 <div className="overflow-hidden transition-all duration-300" style={{ maxHeight: drawerOpen ? 200 : 0 }}>
                   <div className="flex flex-wrap gap-2" style={{ padding: "0 20px 12px" }}>
-                    {tabHiddenCards.map(id => (
-                      <button key={id} onClick={() => restoreCard(id)} className="flex items-center gap-2 rounded-full text-sm font-semibold border-none cursor-pointer bg-muted text-foreground" style={{ padding: "6px 16px" }}>
-                        {CARD_LABELS[id] || id} <Eye className="w-3.5 h-3.5 text-primary" />
-                      </button>
-                    ))}
+                    {tabHiddenCards.map(id => (<button key={id} onClick={() => restoreCard(id)} className="flex items-center gap-2 rounded-full text-sm font-semibold border-none cursor-pointer bg-muted text-foreground" style={{ padding: "6px 16px" }}>{CARD_LABELS[id] || id} <Eye className="w-3.5 h-3.5 text-primary" /></button>))}
                     <button onClick={restoreAll} className="text-sm font-semibold underline text-primary bg-transparent border-none cursor-pointer">Restore All</button>
                   </div>
                 </div>
               </div>
             )}
-
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={allVisible} strategy={verticalListSortingStrategy}>
                 {rows.map((row, ri) => (
                   <div key={ri} className={`money-tab-row${row.length === 1 ? " full-width" : ""}`}>
                     {row.map(id => {
-                      const c = cardMap[id];
-                      if (!c) return null;
+                      const c = cardMap[id]; if (!c) return null;
                       const isSearchDimmed = searchQuery && !(CARD_LABELS[id] || id).toLowerCase().includes(searchQuery.toLowerCase());
                       const needsGate = !isPremium && PREMIUM_CARD_IDS.has(id);
                       return (
                         <div key={id} style={{ opacity: isSearchDimmed ? 0.3 : 1, pointerEvents: isSearchDimmed ? "none" : "auto", transition: "opacity 200ms" }}>
-                          {needsGate ? (
-                            <PremiumGate feature={CARD_LABELS[id] || "This card"} blur>
-                              <MoneyCard id={id} front={c.front} back={c.back} fullWidth={FULL_WIDTH.has(id)} onHide={() => hideCard(id)} cardLabel={CARD_LABELS[id] || id} />
-                            </PremiumGate>
-                          ) : (
-                            <MoneyCard id={id} front={c.front} back={c.back} fullWidth={FULL_WIDTH.has(id)} onHide={() => hideCard(id)} cardLabel={CARD_LABELS[id] || id} />
-                          )}
+                          {needsGate ? (<PremiumGate feature={CARD_LABELS[id] || "This card"} blur><MoneyCard id={id} front={c.front} back={c.back} fullWidth={FULL_WIDTH.has(id)} onHide={() => hideCard(id)} cardLabel={CARD_LABELS[id] || id} /></PremiumGate>) : (<MoneyCard id={id} front={c.front} back={c.back} fullWidth={FULL_WIDTH.has(id)} onHide={() => hideCard(id)} cardLabel={CARD_LABELS[id] || id} />)}
                         </div>
                       );
                     })}
@@ -262,27 +286,17 @@ export default function MoneyTabWithSubTabs() {
                 ))}
               </SortableContext>
             </DndContext>
-
             {allVisible.length === 0 && (
               <div className="money-card flex flex-col items-center justify-center py-12 text-center">
                 <p className="text-lg font-semibold text-foreground mb-1">No cards in this tab</p>
                 <p className="text-sm text-muted-foreground mb-4">Add cards or restore hidden ones</p>
-                <button onClick={() => setTrackFinanceOpen(true)} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-5 py-2.5 text-sm font-semibold">
-                  <Plus className="w-4 h-4" /> Add Card
-                </button>
+                <button onClick={() => setTrackFinanceOpen(true)} className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-5 py-2.5 text-sm font-semibold"><Plus className="w-4 h-4" /> Add Card</button>
               </div>
             )}
           </>
         )}
       </div>
-
-      <TrackFinanceModal
-        open={trackFinanceOpen}
-        onClose={() => setTrackFinanceOpen(false)}
-        existingCardIds={cardOrder}
-        onAddCards={handleAddCards}
-        plaidConnected={plaid.isConnected}
-      />
+      <TrackFinanceModal open={trackFinanceOpen} onClose={() => setTrackFinanceOpen(false)} existingCardIds={cardOrder} onAddCards={handleAddCards} plaidConnected={plaid.isConnected} />
     </div>
   );
 }
