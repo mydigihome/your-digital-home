@@ -6,6 +6,32 @@
 
 .linkedin-btn { background-color: #0A66C2 !important; color: #ffffff !important; }
 
+/* ─── Hide Lovable branding badge ─── */
+[data-lovable-badge],
+#lovable-badge,
+.lovable-badge,
+a[href*="lovable.dev"],
+div[class*="lovable"],
+div[id*="lovable"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  z-index: -9999 !important;
+}
+/* Target the bottom-right "Edit with Lovable" pill specifically */
+div[style*="Edit with"],
+div[class*="fixed"][class*="bottom"][class*="right"] a[href*="lovable"],
+.fixed.bottom-4.right-4 a[href*="lovable"],
+[data-gptengineer-app],
+[data-lovable] {
+  display: none !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
