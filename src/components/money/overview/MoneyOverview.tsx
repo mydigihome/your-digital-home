@@ -3,15 +3,14 @@ import TotalSpendingsCard from "./TotalSpendingsCard";
 import TotalEarningsCard from "./TotalEarningsCard";
 import BillsRecurringCard from "./BillsRecurringCard";
 import CreditScoreGaugeCard from "./CreditScoreGaugeCard";
-import PlaidConnect from "@/components/money/PlaidConnect";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+// PlaidConnect removed from here — it now lives only in MoneyPage header (single connect point)
 export default function MoneyOverview() {
   const isMobile = useIsMobile();
 
   return (
     <div className="space-y-6">
-      <PlaidConnect />
       {/* Top: Transaction History + Spendings/Earnings */}
       <div
         style={{

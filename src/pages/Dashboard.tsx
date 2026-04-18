@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,7 +35,6 @@ import TaskEditor from "@/components/TaskEditor";
 import NoteEditor from "@/components/NoteEditor";
 import MonthlyReviewBanner from "@/components/dashboard/MonthlyReviewBanner";
 import AdminReminderWidget from "@/components/AdminReminderWidget";
-import JournalEntryModal from "@/components/journal/JournalEntryModal";
 import StudioSnapshotCard from "@/components/dashboard/StudioSnapshotCard";
 import QuickAddModal from "@/components/dashboard/QuickAddModal";
 import StatusUpdateModal from "@/components/dashboard/StatusUpdateModal";
@@ -56,7 +55,6 @@ import { Maximize2 } from "lucide-react";
 import { createPortal } from "react-dom";
 import { loadStoredJson, saveStoredJson } from "@/lib/localStorage";
 
-/* ── Helpers ── */
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return "Good morning";
@@ -73,7 +71,6 @@ function useCurrentTime() {
   return now;
 }
 
-/* ── Progress Ring ── */
 function ProgressRing({ progress, size = 80, strokeWidth = 7, gradientId, color1, color2, children }: {
   progress: number; size?: number; strokeWidth?: number; gradientId: string; color1: string; color2: string; children: React.ReactNode;
 }) {
@@ -104,22 +101,12 @@ function ProgressRing({ progress, size = 80, strokeWidth = 7, gradientId, color1
   );
 }
 
-/* ── Sortable Card Wrapper ── */
 function SortableCard({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    position: "relative" as const,
-  };
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1, position: "relative" as const };
   return (
     <div ref={setNodeRef} style={style} className="relative group/drag">
-      <div
-        {...attributes}
-        {...listeners}
-        className="absolute left-3 top-3 z-20 w-7 h-7 rounded-md bg-muted/80 backdrop-blur border border-border flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover/drag:opacity-100 transition-opacity"
-      >
+      <div {...attributes} {...listeners} className="absolute left-3 top-3 z-20 w-7 h-7 rounded-md bg-muted/80 backdrop-blur border border-border flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover/drag:opacity-100 transition-opacity">
         <GripVertical className="w-4 h-4 text-muted-foreground" />
       </div>
       {children}
@@ -127,17 +114,6 @@ function SortableCard({ id, children }: { id: string; children: React.ReactNode 
   );
 }
 
-/* ── Mood Icon ── */
-function MoodIcon({ mood }: { mood?: string }) {
-  if (!mood) return <Heart className="w-4 h-4 text-muted-foreground/40" />;
-  const m = mood.toLowerCase();
-  if (m.includes('happy') || m.includes('great') || m === '😊' || m === '❤️' || m === '😄') return <Smile className="w-4 h-4 text-success" />;
-  if (m.includes('sad') || m.includes('down') || m === '😢' || m === '🌧') return <CloudRain className="w-4 h-4 text-info" />;
-  if (m.includes('calm') || m.includes('peace') || m === '☀️') return <Sun className="w-4 h-4 text-warning" />;
-  return <Heart className="w-4 h-4 text-muted-foreground/40" />;
-}
-
-/* ── Scripture ── */
 const SCRIPTURES: Record<string, { text: string; ref: string }[]> = {
   christianity: [
     { text: "For I know the plans I have for you, declares the Lord, plans to prosper you and not to harm you.", ref: "Jeremiah 29:11" },
@@ -175,13 +151,11 @@ function ScriptureContent({ religion }: { religion?: string }) {
   );
 }
 
-
 const DEFAULT_LEFT_ORDER = ["networth-projects", "market", "momentum", "links", "studio", "reflections"];
 const DEFAULT_RIGHT_ORDER = ["scripture", "reminders", "agenda", "todos", "network"];
 import defaultHeroBg from "@/assets/default-dashboard-hero.png";
 const HERO_BG = defaultHeroBg;
 
-/* ═══════════════════════════════════════════════════ */
 export default function Dashboard() {
   const { profile, user } = useAuth();
   const { data: projects = [] } = useProjects();
@@ -190,7 +164,6 @@ export default function Dashboard() {
   const { data: habits = [] } = useHabits();
   const { data: habitLogs = [] } = useHabitLogs();
   const { data: todayEvents = [] } = useTodayEvents();
-  const { data: expenses = [] } = useExpenses();
   const { data: finances } = useUserFinances();
   const { data: loans } = useLoans();
   const { data: contacts = [] } = useContacts();
@@ -209,23 +182,31 @@ export default function Dashboard() {
   const now = useCurrentTime();
   const [showTutorial, setShowTutorial] = useState(false);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
-  const [journalModalOpen, setJournalModalOpen] = useState(false);
   const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [statusModalOpen, setStatusModalOpen] = useState(false);
   const quickTodosRef = useRef<HTMLDivElement>(null);
-
-  // Stock state
   const [showBrokerModal, setShowBrokerModal] = useState(false);
   const [isMarketFullscreen, setIsMarketFullscreen] = useState(false);
   const enterFullscreen = () => { setIsMarketFullscreen(true); document.body.style.overflow = "hidden"; };
   const exitFullscreen = () => { setIsMarketFullscreen(false); document.body.style.overflow = ""; };
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // FIX: Always use DEFAULT arrays — never use empty arrays from localStorage/DB
+  // FIX: userName derived reactively — picks up profile.full_name when async fetch completes
+  // Priority: profiles table > auth user_metadata > email prefix
+  const userName = useMemo(() => {
+    const name = profile?.full_name?.trim()
+      || user?.user_metadata?.full_name?.trim()
+      || user?.user_metadata?.name?.trim()
+      || "";
+    return name.split(" ")[0] || user?.email?.split("@")[0] || "there";
+  }, [profile?.full_name, user?.user_metadata?.full_name, user?.user_metadata?.name, user?.email]);
+
+  const greeting = `${getGreeting()}, ${userName}`;
+  const currentDate = format(now, "EEEE, MMMM d");
+
   const [leftOrder, setLeftOrder] = useState<string[]>(() => {
     const stored = loadStoredJson<string[]>("dh_left_column_order", DEFAULT_LEFT_ORDER);
-    // If stored is empty, always use defaults
     return stored.length > 0 ? stored : DEFAULT_LEFT_ORDER;
   });
   const [rightOrder, setRightOrder] = useState<string[]>(() => {
@@ -233,7 +214,6 @@ export default function Dashboard() {
     return stored.length > 0 ? stored : DEFAULT_RIGHT_ORDER;
   });
 
-  // Load widget order from Supabase on mount — but ONLY if non-empty
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -242,12 +222,10 @@ export default function Dashboard() {
         .select("widget_order_left, widget_order_right")
         .eq("user_id", user.id)
         .maybeSingle();
-      // FIX: Only use DB values if they're non-empty arrays with actual items
       if (data?.widget_order_left && Array.isArray(data.widget_order_left) && data.widget_order_left.length > 0) {
         setLeftOrder(data.widget_order_left);
         saveStoredJson("dh_left_column_order", data.widget_order_left);
       } else {
-        // DB has empty array — set defaults and save them
         saveStoredJson("dh_left_column_order", DEFAULT_LEFT_ORDER);
       }
       if (data?.widget_order_right && Array.isArray(data.widget_order_right) && data.widget_order_right.length > 0) {
@@ -266,15 +244,10 @@ export default function Dashboard() {
 
   const saveWidgetOrderToDb = async (left: string[], right: string[]) => {
     if (!user) return;
-    await (supabase as any).from("user_preferences").update({
-      widget_order_left: left,
-      widget_order_right: right,
-    }).eq("user_id", user.id);
+    await (supabase as any).from("user_preferences").update({ widget_order_left: left, widget_order_right: right }).eq("user_id", user.id);
   };
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
+  const handleDragStart = (event: DragStartEvent) => setActiveId(event.active.id as string);
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
@@ -302,28 +275,24 @@ export default function Dashboard() {
   const createHabit = useCreateHabit();
   const logHabitHours = useLogHabitHours();
 
-  // Payment success
+  const { data: expenses = [] } = useExpenses();
+
   useEffect(() => {
     const paymentParam = searchParams.get("payment");
     const planParam = searchParams.get("plan");
     if (paymentParam === "success") {
       if (planParam === "founding") {
         upsertPrefs.mutate({ is_subscribed: true, subscription_type: "founding", founding_member_since: new Date().toISOString() } as any);
-        if (user) {
-          supabase.from("profiles").update({ founding_member: true } as any).eq("id", user.id).then(() => {});
-        }
+        if (user) supabase.from("profiles").update({ founding_member: true } as any).eq("id", user.id).then(() => {});
       } else {
         upsertPrefs.mutate({ is_subscribed: true, subscription_type: planParam || "pro" } as any);
       }
-      import("canvas-confetti").then((m) => {
-        m.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
-      });
+      import("canvas-confetti").then((m) => m.default({ particleCount: 150, spread: 80, origin: { y: 0.6 } }));
       toast.success(planParam === "founding" ? "Welcome, Founding Member! Full access unlocked." : "You're all set — Pro features unlocked.");
       setSearchParams({}, { replace: true });
     }
   }, []);
 
-  // Tutorial
   useEffect(() => {
     if (prefs && (prefs as any).welcome_video_watched === false) {
       const timer = setTimeout(() => setShowTutorial(true), 5000);
@@ -331,13 +300,6 @@ export default function Dashboard() {
     }
   }, [prefs]);
 
-  // FIX: Greeting uses profile.full_name (synced from DB) — falls back to auth metadata then email
-  const userName = profile?.full_name?.split(" ")[0]
-    || user?.user_metadata?.full_name?.split(" ")[0]
-    || user?.email?.split("@")[0]
-    || "there";
-  const greeting = `${getGreeting()}, ${userName}`;
-  const currentDate = format(now, "EEEE, MMMM d");
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter(t => t.status === "done").length;
   const momentum = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
@@ -359,69 +321,40 @@ export default function Dashboard() {
     .slice(0, 3);
 
   const agendaItems = [
-    ...(todayEvents || []).map(e => ({
-      time: format(new Date(e.start_time), "h:mm a"),
-      title: e.title,
-      subtitle: e.location || "",
-      type: "event" as const,
-    })),
-    ...tasks
-      .filter(t => t.due_date && isToday(new Date(t.due_date)) && t.status !== "done")
-      .slice(0, 5)
-      .map(t => ({
-        time: t.due_date ? format(new Date(t.due_date), "h:mm a") : "",
-        title: t.title,
-        subtitle: "",
-        type: "task" as const,
-      })),
+    ...(todayEvents || []).map(e => ({ time: format(new Date(e.start_time), "h:mm a"), title: e.title, subtitle: e.location || "", type: "event" as const })),
+    ...tasks.filter(t => t.due_date && isToday(new Date(t.due_date)) && t.status !== "done").slice(0, 5).map(t => ({ time: t.due_date ? format(new Date(t.due_date), "h:mm a") : "", title: t.title, subtitle: "", type: "task" as const })),
   ].sort((a, b) => a.time.localeCompare(b.time)).slice(0, 3);
 
   const { data: bills = [] } = useBills();
   const moneyReminders = (() => {
     const today = new Date();
-    const upcoming = (bills || [])
-      .filter(b => {
-        if (b.status === 'paid') return false;
-        const due = new Date(b.due_date);
-        const diffDays = Math.ceil((due.getTime() - today.getTime()) / 86400000);
-        return diffDays >= -3 && diffDays <= 14;
-      })
-      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime())
-      .slice(0, 3)
-      .map(b => ({ name: b.merchant, amount: b.amount, dueDate: b.due_date }));
-    return upcoming;
+    return (bills || []).filter(b => {
+      if (b.status === 'paid') return false;
+      const due = new Date(b.due_date);
+      const diffDays = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+      return diffDays >= -3 && diffDays <= 14;
+    }).sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()).slice(0, 3).map(b => ({ name: b.merchant, amount: b.amount, dueDate: b.due_date }));
   })();
 
   const { data: journalEntries = [] } = useQuery({
     queryKey: ["recent_journal", user?.id],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("journal_entries")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(20);
+      const { data } = await supabase.from("journal_entries").select("*").order("created_at", { ascending: false }).limit(20);
       return data || [];
     },
     enabled: !!user,
   });
 
-  // Emotion stats for journal card
   const journalEmotionStats = (() => {
     const counts: Record<string, number> = {};
     let total = 0;
-    journalEntries.forEach((e: any) => {
-      if (e.mood) { counts[e.mood] = (counts[e.mood] || 0) + 1; total++; }
-    });
-    return Object.entries(counts)
-      .map(([label, count]) => ({ label, count, percentage: total ? Math.round((count / total) * 100) : 0 }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 4);
+    journalEntries.forEach((e: any) => { if (e.mood) { counts[e.mood] = (counts[e.mood] || 0) + 1; total++; } });
+    return Object.entries(counts).map(([label, count]) => ({ label, count, percentage: total ? Math.round((count / total) * 100) : 0 })).sort((a, b) => b.count - a.count).slice(0, 4);
   })();
   const EMOTION_COLORS_DASH: Record<string, string> = { Happy: "#F59E0B", Sad: "#7C3A2D", Calm: "#6B8F3A", Anxious: "#7B7464", Inspired: "#7B5EA7", Focused: "#10B981" };
 
   const hasCover = prefs?.dashboard_cover_type === "image" && prefs.dashboard_cover;
   const heroBg = hasCover ? prefs!.dashboard_cover! : HERO_BG;
-
 
   const handleAddTodo = () => {
     if (!newTodoText.trim()) return;
@@ -437,7 +370,6 @@ export default function Dashboard() {
     }, 500);
   };
 
-  /* ── Quick action circles for hero ── */
   const heroActions = [
     { key: "goal", label: "Goal", icon: Target, onClick: () => setCreateGoalOpen(true) },
     { key: "contact", label: "Contact", icon: UserPlus, onClick: () => navigate("/relationships") },
@@ -446,7 +378,6 @@ export default function Dashboard() {
     { key: "journal", label: "Journal", icon: BookOpen, onClick: () => navigate("/journal/new") },
   ];
 
-  /* ── Compact Net Worth (inline) ── */
   const compactNetWorth = (() => {
     const savings = Number(finances?.current_savings || 0);
     const totalDebtCalc = Number(finances?.total_debt || 0) + (loans || []).reduce((s: number, l: any) => s + Number(l.amount), 0);
@@ -454,8 +385,7 @@ export default function Dashboard() {
     const inc = Number(finances?.monthly_income || 0);
     const fmt = (n: number) => { const abs = Math.abs(n); const p = n < 0 ? "-" : ""; return abs >= 1000 ? `${p}$${(abs / 1000).toFixed(1)}K` : `${p}$${abs.toLocaleString()}`; };
     return (
-      <button onClick={() => navigate("/finance/wealth")}
-        className="h-full p-4 bg-card border border-border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:border-primary/30 hover:shadow-md transition-all text-left group flex flex-col justify-between">
+      <button onClick={() => navigate("/finance/wealth")} className="h-full p-4 bg-card border border-border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:border-primary/30 hover:shadow-md transition-all text-left group flex flex-col justify-between">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-success" />
@@ -472,7 +402,6 @@ export default function Dashboard() {
     );
   })();
 
-  /* ── Compact Active Projects (inline) ── */
   const compactProjects = (
     <div className="h-full p-4 bg-card border border-border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] flex flex-col">
       <div className="flex items-center justify-between mb-3">
@@ -487,11 +416,8 @@ export default function Dashboard() {
       ) : (
         <div className="flex gap-2 flex-1 overflow-hidden">
           {activeProjects.map((project) => (
-            <button key={project.id} onClick={() => navigate(`/project/${project.id}`)}
-              className="flex-1 min-w-0 p-3 bg-muted/40 rounded-lg border border-border hover:border-primary/30 transition text-left flex flex-col justify-between">
-              <p className="text-sm font-semibold truncate text-foreground" title={project.name}>
-                {project.name.length > 24 ? project.name.slice(0, 24) + "…" : project.name}
-              </p>
+            <button key={project.id} onClick={() => navigate(`/project/${project.id}`)} className="flex-1 min-w-0 p-3 bg-muted/40 rounded-lg border border-border hover:border-primary/30 transition text-left flex flex-col justify-between">
+              <p className="text-sm font-semibold truncate text-foreground" title={project.name}>{project.name.length > 24 ? project.name.slice(0, 24) + "…" : project.name}</p>
               <div className="mt-2 flex items-center justify-between">
                 <span className="text-[11px] text-muted-foreground">{project.done}/{project.total}</span>
                 <span className="text-xs font-bold text-primary">{project.percentage}%</span>
@@ -508,17 +434,15 @@ export default function Dashboard() {
 
   const renderLeftCard = (id: string) => {
     switch (id) {
-      case "networth-projects": {
+      case "networth-projects":
         return (
-           <SortableCard key={id} id={id}>
+          <SortableCard key={id} id={id}>
             <div className="flex flex-col md:flex-row items-stretch gap-4 w-full">
               <div className="w-full md:w-72 flex-shrink-0 flex flex-col">{compactNetWorth}</div>
               <div className="w-full md:flex-1 min-w-0 flex flex-col">{compactProjects}</div>
             </div>
           </SortableCard>
         );
-      }
-
       case "market":
         return (
           <SortableCard key={id} id={id}>
@@ -526,14 +450,10 @@ export default function Dashboard() {
               <div className="px-5 pt-4 pb-2 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-semibold text-foreground">Market Watch</h2>
-                  <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-success">
-                    <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" /> Live
-                  </span>
+                  <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-success"><span className="w-1.5 h-1.5 rounded-full bg-success inline-block" /> Live</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button onClick={enterFullscreen} title="Fullscreen" className="w-7 h-7 flex items-center justify-center rounded-md transition text-muted-foreground hover:bg-success/10 hover:text-success">
-                    <Maximize2 className="w-3.5 h-3.5" />
-                  </button>
+                  <button onClick={enterFullscreen} title="Fullscreen" className="w-7 h-7 flex items-center justify-center rounded-md transition text-muted-foreground hover:bg-success/10 hover:text-success"><Maximize2 className="w-3.5 h-3.5" /></button>
                   <button onClick={() => setShowBrokerModal(true)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-primary text-primary-foreground hover:bg-primary/90">Trade</button>
                 </div>
               </div>
@@ -542,10 +462,7 @@ export default function Dashboard() {
             {isMarketFullscreen && createPortal(
               <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999, display: 'flex', flexDirection: 'column' }} className="bg-background">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-base text-foreground">Market Watch</span>
-                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-success"><span className="w-1.5 h-1.5 rounded-full bg-success inline-block" /> Live</span>
-                  </div>
+                  <div className="flex items-center gap-2"><span className="font-semibold text-base text-foreground">Market Watch</span><span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-success"><span className="w-1.5 h-1.5 rounded-full bg-success inline-block" /> Live</span></div>
                   <button onClick={exitFullscreen} className="w-8 h-8 flex items-center justify-center rounded-full bg-black/20 text-white hover:bg-black/40 transition"><X className="w-5 h-5" /></button>
                 </div>
                 <div style={{ flex: 1, overflow: 'hidden' }}><TradingViewWidget /></div>
@@ -554,37 +471,23 @@ export default function Dashboard() {
             )}
           </SortableCard>
         );
-
       case "momentum": {
         const mobile = window.innerWidth < 768;
         return (
           <SortableCard key={id} id={id}>
             <div className={mobile ? "flex flex-col gap-3" : "flex gap-4"}>
               <div className="flex-1 p-5 flex items-center gap-5 bg-card border border-border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-                <ProgressRing progress={momentum} size={72} strokeWidth={6} gradientId="m-grad" color1="#6366F1" color2="#8B5CF6">
-                  <span className="text-base font-bold text-foreground">{momentum}%</span>
-                </ProgressRing>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Momentum</p>
-                  <p className="text-xs text-muted-foreground">{doneTasks}/{totalTasks} tasks done</p>
-                  <p className="text-xs font-medium mt-0.5 text-primary">{momentum}% Complete</p>
-                </div>
+                <ProgressRing progress={momentum} size={72} strokeWidth={6} gradientId="m-grad" color1="#6366F1" color2="#8B5CF6"><span className="text-base font-bold text-foreground">{momentum}%</span></ProgressRing>
+                <div><p className="text-sm font-semibold text-foreground">Momentum</p><p className="text-xs text-muted-foreground">{doneTasks}/{totalTasks} tasks done</p><p className="text-xs font-medium mt-0.5 text-primary">{momentum}% Complete</p></div>
               </div>
               <button onClick={() => habits.length > 0 && setSelectedHabit(habits[0])} className="flex-1 p-5 flex items-center gap-4 cursor-pointer hover:opacity-90 transition bg-card border border-border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-                <ProgressRing progress={habitsProgress} size={68} strokeWidth={6} gradientId="h-grad" color1="#10B981" color2="#34D399">
-                  <span className="text-sm font-bold text-foreground">{streakDays}</span>
-                </ProgressRing>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">Habit Tracker</p>
-                  <p className="text-xs text-muted-foreground">{habits[0]?.name || "Morning Meditation"}</p>
-                  <p className="text-xs font-medium mt-0.5 text-success">{habitsProgress}% Consistency</p>
-                </div>
+                <ProgressRing progress={habitsProgress} size={68} strokeWidth={6} gradientId="h-grad" color1="#10B981" color2="#34D399"><span className="text-sm font-bold text-foreground">{streakDays}</span></ProgressRing>
+                <div><p className="text-sm font-semibold text-foreground">Habit Tracker</p><p className="text-xs text-muted-foreground">{habits[0]?.name || "Morning Meditation"}</p><p className="text-xs font-medium mt-0.5 text-success">{habitsProgress}% Consistency</p></div>
               </button>
             </div>
           </SortableCard>
         );
       }
-
       case "links":
         return (
           <SortableCard key={id} id={id}>
@@ -609,32 +512,26 @@ export default function Dashboard() {
             </div>
           </SortableCard>
         );
-
       case "studio":
         return <SortableCard key={id} id={id}><StudioSnapshotCard /></SortableCard>;
-
       case "reflections":
         return (
           <SortableCard key={id} id={id}>
             <div className="bg-card border border-border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
               <div className="p-5 pb-0 flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-base font-semibold text-foreground">Recent Reflections</h2>
-                  <p className="text-xs text-success">Capture your thoughts daily</p>
-                </div>
+                <div><h2 className="text-base font-semibold text-foreground">Recent Reflections</h2><p className="text-xs text-success">Capture your thoughts daily</p></div>
                 <button onClick={() => navigate("/journal/new")} className="text-sm font-medium text-success hover:underline">New Journal Entry</button>
               </div>
               <div className="px-5 pb-5 flex flex-col sm:flex-row gap-5">
                 <div className="flex-1 sm:flex-[0_0_60%]">
                   {(journalEntries.length > 0 ? journalEntries : [
-                    { id: "sample1", title: "The Clarity of Morning", created_at: new Date().toISOString(), mood_emoji: "", mood: "Calm" },
-                    { id: "sample2", title: "Stormy Decisions", created_at: new Date(Date.now() - 86400000).toISOString(), mood_emoji: "", mood: "Anxious" },
+                    { id: "sample1", title: "The Clarity of Morning", created_at: new Date().toISOString(), mood: "Calm" },
+                    { id: "sample2", title: "Stormy Decisions", created_at: new Date(Date.now() - 86400000).toISOString(), mood: "Anxious" },
                   ]).slice(0, 3).map((entry: any) => {
                     const entryDate = new Date(entry.created_at);
                     const dateLabel = isToday(entryDate) ? "Today" : format(entryDate, "MMM d");
                     return (
-                      <div key={entry.id} className="group py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition rounded-lg px-2 -mx-2 cursor-pointer"
-                        onClick={() => entry.id.startsWith("sample") ? navigate("/journal") : navigate(`/journal/${entry.id}`)}>
+                      <div key={entry.id} className="group py-3 border-b border-border last:border-b-0 hover:bg-muted/30 transition rounded-lg px-2 -mx-2 cursor-pointer" onClick={() => entry.id.startsWith("sample") ? navigate("/journal") : navigate(`/journal/${entry.id}`)}>
                         <span className="text-[11px] font-medium" style={{ color: "#10B981" }}>{dateLabel}</span>
                         <p className="text-sm font-medium text-foreground truncate mt-0.5">{entry.title || "Untitled Entry"}</p>
                         {entry.mood && <span className="text-[10px] px-2 py-0.5 rounded-full mt-1 inline-block" style={{ background: `${EMOTION_COLORS_DASH[entry.mood] || "#9CA3AF"}20`, color: EMOTION_COLORS_DASH[entry.mood] || "#9CA3AF" }}>{entry.mood}</span>}
@@ -660,7 +557,6 @@ export default function Dashboard() {
             </div>
           </SortableCard>
         );
-
       default: return null;
     }
   };
@@ -677,7 +573,6 @@ export default function Dashboard() {
             </div>
           </SortableCard>
         );
-
       case "reminders":
         return (
           <SortableCard key={id} id={id}>
@@ -688,29 +583,21 @@ export default function Dashboard() {
                 <ExternalLink className="w-3.5 h-3.5 text-white/40 ml-auto" />
               </div>
               {moneyReminders.length > 0 ? (
-                <div>
-                  {moneyReminders.map((bill, idx) => {
-                    const due = new Date(bill.dueDate);
-                    const diffDays = Math.ceil((due.getTime() - Date.now()) / 86400000);
-                    const dueLabel = diffDays < 0 ? "Overdue" : diffDays === 0 ? "Due today" : diffDays === 1 ? "Due tomorrow" : `Due ${format(due, "MMM d")}`;
-                    return (
-                      <div key={idx} className="flex items-center justify-between py-3 border-b border-white/10 last:border-b-0">
-                        <div>
-                          <p className="text-sm font-medium text-white">{bill.name}</p>
-                          <p className={`text-xs ${diffDays < 0 ? "text-red-400" : diffDays <= 2 ? "text-amber-400" : "text-white/50"}`}>{dueLabel}</p>
-                        </div>
-                        <span className="text-base font-bold text-red-400">${bill.amount.toFixed(2)}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-white/50 text-center py-4">No upcoming bills</p>
-              )}
+                <div>{moneyReminders.map((bill, idx) => {
+                  const due = new Date(bill.dueDate);
+                  const diffDays = Math.ceil((due.getTime() - Date.now()) / 86400000);
+                  const dueLabel = diffDays < 0 ? "Overdue" : diffDays === 0 ? "Due today" : diffDays === 1 ? "Due tomorrow" : `Due ${format(due, "MMM d")}`;
+                  return (
+                    <div key={idx} className="flex items-center justify-between py-3 border-b border-white/10 last:border-b-0">
+                      <div><p className="text-sm font-medium text-white">{bill.name}</p><p className={`text-xs ${diffDays < 0 ? "text-red-400" : diffDays <= 2 ? "text-amber-400" : "text-white/50"}`}>{dueLabel}</p></div>
+                      <span className="text-base font-bold text-red-400">${bill.amount.toFixed(2)}</span>
+                    </div>
+                  );
+                })}</div>
+              ) : (<p className="text-sm text-white/50 text-center py-4">No upcoming bills</p>)}
             </button>
           </SortableCard>
         );
-
       case "agenda":
         return (
           <SortableCard key={id} id={id}>
@@ -720,42 +607,29 @@ export default function Dashboard() {
                 <button onClick={() => navigate("/calendar")} className="text-sm font-medium text-success hover:underline">View All</button>
               </div>
               {agendaItems.length > 0 ? (
-                <div>
-                  {agendaItems.map((item, idx) => {
-                    const colors = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--destructive))"];
-                    return (
-                      <div key={idx} className="flex gap-4 py-3 border-b border-border last:border-b-0">
-                        <div className="w-1 rounded-sm flex-shrink-0" style={{ background: colors[idx % 3] }} />
-                        <div>
-                          <p className="text-xs font-semibold" style={{ color: colors[idx % 3] }}>{item.time}</p>
-                          <p className="text-sm font-semibold text-foreground">{item.title}</p>
-                          {item.subtitle && <p className="text-xs text-muted-foreground">{item.subtitle}</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <div>{agendaItems.map((item, idx) => {
+                  const colors = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--destructive))"];
+                  return (
+                    <div key={idx} className="flex gap-4 py-3 border-b border-border last:border-b-0">
+                      <div className="w-1 rounded-sm flex-shrink-0" style={{ background: colors[idx % 3] }} />
+                      <div><p className="text-xs font-semibold" style={{ color: colors[idx % 3] }}>{item.time}</p><p className="text-sm font-semibold text-foreground">{item.title}</p>{item.subtitle && <p className="text-xs text-muted-foreground">{item.subtitle}</p>}</div>
+                    </div>
+                  );
+                })}</div>
               ) : (
                 <div className="text-center py-6">
                   <p className="text-sm text-muted-foreground">No events today.</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Connect Google or Apple Calendar in{" "}
-                    <button onClick={() => navigate("/settings?tab=connections")} className="text-primary font-medium hover:underline">Settings → Connections</button>{" "}
-                    to sync your schedule.
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">Connect Google Calendar in <button onClick={() => navigate("/settings?tab=connections")} className="text-primary font-medium hover:underline">Settings → Connections</button>.</p>
                 </div>
               )}
             </div>
           </SortableCard>
         );
-
       case "todos":
         return (
           <SortableCard key={id} id={id}>
             <div ref={quickTodosRef} className="p-5 bg-card border border-border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] transition-all duration-300">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-foreground">Quick To-Dos</h2>
-              </div>
+              <h2 className="text-base font-semibold text-foreground mb-4">Quick To-Dos</h2>
               <div>
                 {todos.filter(t => !t.completed).slice(0, 3).map(todo => (
                   <div key={todo.id} className="flex items-center gap-3 py-2.5">
@@ -771,15 +645,11 @@ export default function Dashboard() {
                     <span className="text-sm line-through text-muted-foreground">{todo.text}</span>
                   </div>
                 ))}
-                <input value={newTodoText} onChange={(e) => setNewTodoText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddTodo()}
-                  placeholder="Add a quick note..."
-                  className="w-full mt-2 py-2 px-3 text-[13px] bg-transparent outline-none rounded-lg border border-dashed border-border text-foreground placeholder:text-muted-foreground" />
+                <input value={newTodoText} onChange={(e) => setNewTodoText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddTodo()} placeholder="Add a quick note..." className="w-full mt-2 py-2 px-3 text-[13px] bg-transparent outline-none rounded-lg border border-dashed border-border text-foreground placeholder:text-muted-foreground" />
               </div>
             </div>
           </SortableCard>
         );
-
       case "network":
         return (
           <SortableCard key={id} id={id}>
@@ -787,14 +657,11 @@ export default function Dashboard() {
               <h2 className="text-base font-semibold text-foreground mb-3">Network</h2>
               <p className="text-2xl font-bold text-foreground tabular-nums">{contacts.length}</p>
               <p className="text-xs text-muted-foreground mb-3">Total contacts</p>
-              {contacts.length > 0 && contacts[0] && (
-                <p className="text-xs text-muted-foreground truncate">Last contacted: <span className="text-foreground font-medium">{contacts[0].name}</span></p>
-              )}
+              {contacts.length > 0 && contacts[0] && <p className="text-xs text-muted-foreground truncate">Last contacted: <span className="text-foreground font-medium">{contacts[0].name}</span></p>}
               <button onClick={() => navigate("/relationships")} className="mt-2 text-xs font-medium text-success hover:underline">+ Add Contact</button>
             </div>
           </SortableCard>
         );
-
       default: return null;
     }
   };
@@ -803,7 +670,6 @@ export default function Dashboard() {
     <AppShell>
       <div className="min-h-screen bg-background">
         <MonthlyReviewBanner />
-
         <div className="max-w-6xl mx-auto px-4 pb-28">
           {/* HERO BANNER */}
           <div
@@ -816,7 +682,7 @@ export default function Dashboard() {
                 const file = e.target.files[0];
                 if (file) {
                   const reader = new FileReader();
-                  reader.onload = (ev: any) => { upsertPrefs.mutate({ dashboard_cover: ev.target.result, dashboard_cover_type: "image" }); };
+                  reader.onload = (ev: any) => upsertPrefs.mutate({ dashboard_cover: ev.target.result, dashboard_cover_type: "image" });
                   reader.readAsDataURL(file);
                 }
               };
@@ -828,6 +694,7 @@ export default function Dashboard() {
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-20">
               <div className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"><Edit2 className="w-4 h-4 text-white" /></div>
             </div>
+            {/* Monthly review button */}
             {(() => {
               const today = new Date();
               const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
@@ -835,25 +702,26 @@ export default function Dashboard() {
               const alreadyDone = (prefs as any)?.last_review_month === `${format(today, "MMMM yyyy")}`;
               if (!showReview || alreadyDone) return null;
               return (
-                <button onClick={(e) => { e.stopPropagation(); navigate("/monthly-review"); }}
-                  className="absolute top-4 right-14 z-20 flex items-center gap-2 px-3 py-2 text-xs font-semibold text-white rounded-lg bg-primary/80 hover:bg-primary transition">
+                <button onClick={(e) => { e.stopPropagation(); navigate("/monthly-review"); }} className="absolute top-4 right-14 z-20 flex items-center gap-2 px-3 py-2 text-xs font-semibold text-white rounded-lg bg-primary/80 hover:bg-primary transition">
                   <FileText className="w-3.5 h-3.5" /> Monthly Review
                 </button>
               );
             })()}
+            {/* Greeting — bottom left */}
             <div className="absolute bottom-16 left-6 sm:left-8 z-10">
               <p className="text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.75)" }}>{currentDate}</p>
               <h1 className="text-[32px] leading-[1.15] mt-0.5 font-semibold text-white" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>{greeting}</h1>
             </div>
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 sm:gap-5">
+            {/* Quick-action circles — bottom RIGHT (moved from center) */}
+            <div className="absolute bottom-4 right-6 sm:right-8 z-10 flex items-center gap-3">
               {heroActions.map((action) => {
                 const Icon = action.icon;
                 return (
                   <button key={action.key} onClick={(e) => { e.stopPropagation(); action.onClick(); }} className="flex flex-col items-center gap-1 group/action">
-                    <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full bg-white flex items-center justify-center transition-transform group-hover/action:scale-110 shadow-md">
-                      <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#059669" }} strokeWidth={1.8} />
+                    <div className="w-10 h-10 sm:w-[46px] sm:h-[46px] rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center transition-transform group-hover/action:scale-110 shadow-md">
+                      <Icon className="w-4 h-4 sm:w-[18px] sm:h-[18px]" style={{ color: "#059669" }} strokeWidth={1.8} />
                     </div>
-                    <span className="text-[11px] font-medium text-white">{action.label}</span>
+                    <span className="text-[10px] font-medium text-white/90">{action.label}</span>
                   </button>
                 );
               })}
@@ -862,31 +730,20 @@ export default function Dashboard() {
 
           {/* TWO-COLUMN GRID */}
           <div className="flex flex-col lg:flex-row gap-6">
-            {/* LEFT COLUMN */}
             <div className="flex-1 min-w-0 space-y-4">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                 <SortableContext items={leftOrder} strategy={verticalListSortingStrategy}>
                   {leftOrder.map((id) => renderLeftCard(id))}
                 </SortableContext>
-                <DragOverlay>
-                  {activeId && leftOrder.includes(activeId) ? (
-                    <div className="opacity-95 scale-[1.005]" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.12)" }}>{renderLeftCard(activeId)}</div>
-                  ) : null}
-                </DragOverlay>
+                <DragOverlay>{activeId && leftOrder.includes(activeId) ? <div className="opacity-95 scale-[1.005]" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.12)" }}>{renderLeftCard(activeId)}</div> : null}</DragOverlay>
               </DndContext>
             </div>
-
-            {/* RIGHT COLUMN */}
             <div className="w-full lg:w-[320px] lg:flex-shrink-0 space-y-4">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                 <SortableContext items={rightOrder} strategy={verticalListSortingStrategy}>
                   {rightOrder.map((id) => renderRightCard(id))}
                 </SortableContext>
-                <DragOverlay>
-                  {activeId && rightOrder.includes(activeId) ? (
-                    <div className="opacity-95 scale-[1.005]" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.12)" }}>{renderRightCard(activeId)}</div>
-                  ) : null}
-                </DragOverlay>
+                <DragOverlay>{activeId && rightOrder.includes(activeId) ? <div className="opacity-95 scale-[1.005]" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.12)" }}>{renderRightCard(activeId)}</div> : null}</DragOverlay>
               </DndContext>
             </div>
           </div>
@@ -904,14 +761,12 @@ export default function Dashboard() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={async () => {
-                const id = deleteEntryId;
-                setDeleteEntryId(null);
-                await (supabase as any).from("journal_entries").delete().eq("id", id!);
-                queryClient.invalidateQueries({ queryKey: ["recent_journal"] });
-                toast("Entry deleted", { duration: 5000 });
-              }}>Delete</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={async () => {
+              const id = deleteEntryId; setDeleteEntryId(null);
+              await (supabase as any).from("journal_entries").delete().eq("id", id!);
+              queryClient.invalidateQueries({ queryKey: ["recent_journal"] });
+              toast("Entry deleted", { duration: 5000 });
+            }}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -919,15 +774,8 @@ export default function Dashboard() {
       <NewProjectModal open={projectModalOpen} onOpenChange={setProjectModalOpen} />
       <CreateGoalModal open={createGoalOpen} onClose={() => setCreateGoalOpen(false)} />
       <NoteEditor open={noteEditorOpen} onClose={() => setNoteEditorOpen(false)} />
-      {taskEditorOpen && projects.length > 0 && (
-        <TaskEditor projectId={projects[0].id} defaultStatus="backlog" onClose={() => setTaskEditorOpen(false)} />
-      )}
-      {showBrokerModal && (
-        <BrokerSelectionModal
-          pair={{ id: "AAPL", user_id: "", symbol: "AAPL", display_name: "Apple Inc.", category: "Stocks", is_active: true, sort_order: 0, created_at: "" } as TradingPair}
-          onClose={() => setShowBrokerModal(false)}
-        />
-      )}
+      {taskEditorOpen && projects.length > 0 && <TaskEditor projectId={projects[0].id} defaultStatus="backlog" onClose={() => setTaskEditorOpen(false)} />}
+      {showBrokerModal && <BrokerSelectionModal pair={{ id: "AAPL", user_id: "", symbol: "AAPL", display_name: "Apple Inc.", category: "Stocks", is_active: true, sort_order: 0, created_at: "" } as TradingPair} onClose={() => setShowBrokerModal(false)} />}
 
       <AnimatePresence>
         {showTutorial && !showVideoPlayer && (
@@ -964,10 +812,7 @@ export default function Dashboard() {
       {selectedHabit && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setSelectedHabit(null); }}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-card rounded-xl p-6 max-w-md w-full shadow-2xl border border-border" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-foreground">Log Habit Hours</h3>
-              <button onClick={() => setSelectedHabit(null)} className="p-1 hover:bg-muted rounded-full transition"><X className="w-5 h-5 text-muted-foreground" /></button>
-            </div>
+            <div className="flex justify-between items-center mb-6"><h3 className="text-lg font-bold text-foreground">Log Habit Hours</h3><button onClick={() => setSelectedHabit(null)} className="p-1 hover:bg-muted rounded-full transition"><X className="w-5 h-5 text-muted-foreground" /></button></div>
             <div className="space-y-1 mb-6">
               {habits.map(h => (
                 <label key={h.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted cursor-pointer">
