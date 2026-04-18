@@ -3,8 +3,6 @@ import TotalSpendingsCard from "./TotalSpendingsCard";
 import TotalEarningsCard from "./TotalEarningsCard";
 import BillsRecurringCard from "./BillsRecurringCard";
 import CreditScoreGaugeCard from "./CreditScoreGaugeCard";
-import FinancialDocUpload from "../FinancialDocUpload";
-import TaxReceiptTracker from "../TaxReceiptTracker";
 import PlaidStatusBar from "../PlaidStatusBar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -13,7 +11,7 @@ export default function MoneyOverview() {
 
   return (
     <div className="space-y-6">
-      {/* Plaid connection status */}
+      {/* Plaid connection status bar — shown inline in Overview */}
       <PlaidStatusBar />
 
       {/* Top: Transaction History + Spendings/Earnings */}
@@ -44,12 +42,6 @@ export default function MoneyOverview() {
         <BillsRecurringCard />
         <CreditScoreGaugeCard />
       </div>
-
-      {/* AI Document Import — auto-populates money fields */}
-      <FinancialDocUpload />
-
-      {/* Tax Receipt Tracker */}
-      <TaxReceiptTracker />
     </div>
   );
 }

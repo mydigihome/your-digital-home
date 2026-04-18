@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { ExternalLink, Search, Sparkles, Plus, X, Upload, Eye, Download, Loader2 } from "lucide-react";
+import { ExternalLink, Search, Sparkles, Plus, X, Loader2, Edit2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserPreferences } from "@/hooks/useUserPreferences";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
@@ -61,40 +62,28 @@ const STATIC_RESOURCES = [
 ];
 
 function getFaviconUrl(url: string) {
-  try {
-    const domain = new URL(url).hostname;
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
-  } catch {
-    return null;
-  }
+  try { return `https://www.google.com/s2/favicons?domain=${new URL(url).hostname}&sz=128`; } catch { return null; }
 }
 
+const DEFAULT_BANNER_COLORS = [
+  "#10B981", "#6366F1", "#F59E0B", "#EF4444", "#3B82F6",
+  "#8B5CF6", "#EC4899", "#14B8A6", "#F97316", "#111827",
+];
+
 interface DynamicResource {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  resource_type: string;
-  url: string | null;
-  file_url: string | null;
-  thumbnail_url: string | null;
-  published: boolean;
-  user_id: string;
+  id: string; title: string; description: string; category: string;
+  resource_type: string; url: string | null; file_url: string | null;
+  thumbnail_url: string | null; published: boolean; user_id: string;
 }
 
 interface CombinedTool {
-  name: string;
-  url: string;
-  category: string;
-  desc: string;
-  isDynamic?: boolean;
-  dynamicId?: string;
-  thumbnail_url?: string | null;
-  published?: boolean;
+  name: string; url: string; category: string; desc: string;
+  isDynamic?: boolean; dynamicId?: string; thumbnail_url?: string | null; published?: boolean;
 }
 
 export default function ResourcesPage() {
   const { user } = useAuth();
+  const { data: prefs } = useUserPreferences();
   const isAdmin = user?.email === "myslimher@gmail.com";
   const isMobile = useIsMobile();
 
@@ -109,25 +98,29 @@ export default function ResourcesPage() {
   const inputBorder = isDark ? "rgba(255,255,255,0.1)" : "#E5E7EB";
   const [urlFetching, setUrlFetching] = useState(false);
 
+  // Banner state — editable, default from user settings
+  const settingsAccent = (prefs as any)?.theme_color ||
+    (typeof window !== "undefined" ? localStorage.getItem("dh_accent_color") : null) || "#10B981";
+  const [bannerColor, setBannerColor] = useState(settingsAccent);
+  const [bannerText, setBannerText] = useState("Tools and resources to level up your workflow");
+  const [editingBanner, setEditingBanner] = useState(false);
+  const [bannerTextDraft, setBannerTextDraft] = useState(bannerText);
+  const [bannerColorDraft, setBannerColorDraft] = useState(bannerColor);
+
   const [dynamicResources, setDynamicResources] = useState<DynamicResource[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingResource, setEditingResource] = useState<DynamicResource | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<DynamicResource | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [previewResource, setPreviewResource] = useState<DynamicResource | null>(null);
-
   const [form, setForm] = useState({
     title: "", description: "", category: "Career",
     resource_type: "link", url: "", published: true,
     thumbnail_url: "" as string,
   });
-
   const [urlPreviewLogo, setUrlPreviewLogo] = useState("");
   const [urlPreviewDomain, setUrlPreviewDomain] = useState("");
 
-  useEffect(() => {
-    fetchResources();
-  }, [user]);
+  useEffect(() => { fetchResources(); }, [user]);
 
   const fetchResources = async () => {
     const { data } = await (supabase as any).from("resources").select("*").order("created_at", { ascending: false });
@@ -141,47 +134,31 @@ export default function ResourcesPage() {
     setUrlPreviewDomain("");
   };
 
-  // Check for duplicate URL across static and dynamic resources
   const isDuplicateUrl = (url: string, excludeId?: string): string | null => {
     if (!url) return null;
     try {
-      const normalizedDomain = new URL(url).hostname.replace('www.', '');
-      // Check static resources
-      const staticMatch = STATIC_RESOURCES.find(r => {
-        try { return new URL(r.url).hostname.replace('www.', '') === normalizedDomain; } catch { return false; }
-      });
-      if (staticMatch) return staticMatch.name;
-      // Check dynamic resources
-      const dynamicMatch = dynamicResources.find(r => {
-        if (excludeId && r.id === excludeId) return false;
-        if (!r.url) return false;
-        try { return new URL(r.url).hostname.replace('www.', '') === normalizedDomain; } catch { return false; }
-      });
-      if (dynamicMatch) return dynamicMatch.title;
+      const norm = new URL(url).hostname.replace("www.", "");
+      const st = STATIC_RESOURCES.find(r => { try { return new URL(r.url).hostname.replace("www.", "") === norm; } catch { return false; } });
+      if (st) return st.name;
+      const dy = dynamicResources.find(r => { if (excludeId && r.id === excludeId) return false; if (!r.url) return false; try { return new URL(r.url).hostname.replace("www.", "") === norm; } catch { return false; } });
+      if (dy) return dy.title;
     } catch {}
     return null;
   };
 
-  // Auto-guess category from description/title keywords
   const guessCategory = (title: string, description: string): string => {
     const text = (title + " " + description).toLowerCase();
     const map: [string, string[]][] = [
-      ["Finance", ["finance", "banking", "invest", "budget", "money", "stock", "trading", "payment", "accounting"]],
-      ["AI", ["ai", "artificial intelligence", "machine learning", "gpt", "llm", "chatbot"]],
-      ["Design", ["design", "ui", "ux", "graphic", "illustration", "figma", "sketch"]],
-      ["Development", ["developer", "code", "programming", "github", "deploy", "hosting", "api"]],
-      ["Productivity", ["productivity", "task", "project management", "notes", "organize", "calendar", "todo"]],
-      ["Communication", ["messaging", "chat", "email", "communication", "slack", "team"]],
-      ["Video", ["video", "editing", "streaming", "youtube", "film", "animation"]],
-      ["Presentations", ["presentation", "slides", "pitch", "deck"]],
-      ["Image Generation", ["image generat", "art generat", "midjourney", "dall-e", "stable diffusion"]],
-      ["Automation", ["automat", "workflow", "zapier", "integration"]],
-      ["Events", ["event", "ticket", "rsvp", "conference", "meetup"]],
-      ["College", ["college", "university", "sat", "admission", "scholarship", "education"]],
-      ["Career", ["career", "job", "resume", "hiring", "recruit", "interview"]],
-      ["Wellness", ["wellness", "health", "meditation", "fitness", "mental health"]],
-      ["Creativity", ["creativ", "music", "art", "writing", "content creation"]],
-      ["Legal", ["legal", "law", "contract", "compliance"]],
+      ["Finance", ["finance", "banking", "invest", "budget", "money", "stock", "trading"]],
+      ["AI", ["ai", "gpt", "llm", "chatbot", "artificial intelligence"]],
+      ["Design", ["design", "ui", "ux", "graphic", "figma"]],
+      ["Development", ["developer", "code", "programming", "github", "deploy", "api"]],
+      ["Productivity", ["productivity", "task", "project", "notes", "calendar"]],
+      ["Communication", ["messaging", "chat", "email", "slack"]],
+      ["Video", ["video", "editing", "streaming", "youtube"]],
+      ["Automation", ["automat", "workflow", "zapier"]],
+      ["Events", ["event", "ticket", "rsvp"]],
+      ["Career", ["career", "job", "resume", "hiring"]],
     ];
     for (const [cat, keywords] of map) {
       if (keywords.some(kw => text.includes(kw))) return cat;
@@ -189,149 +166,56 @@ export default function ResourcesPage() {
     return "Productivity";
   };
 
-  // Auto-populate from URL using fetch-og-tags
   const autoPopulateFromUrl = async (url: string) => {
     if (!url) return;
-    try {
-      new URL(url); // validate
-    } catch { return; }
-
-    const domain = new URL(url).hostname.replace('www.', '');
+    try { new URL(url); } catch { return; }
+    const domain = new URL(url).hostname.replace("www.", "");
     setUrlPreviewDomain(domain);
-    const logo = 'https://logo.clearbit.com/' + domain;
+    const logo = "https://logo.clearbit.com/" + domain;
     setUrlPreviewLogo(logo);
     setForm(p => ({ ...p, thumbnail_url: logo }));
-
-    // Check for duplicate
-    const dupName = isDuplicateUrl(url, editingResource?.id);
-    if (dupName) {
-      toast.error(`"${dupName}" already exists in the Resource Center`);
-      return;
-    }
-
-    // Fetch OG tags for auto-populate
+    const dup = isDuplicateUrl(url, editingResource?.id);
+    if (dup) { toast.error(`"${dup}" already exists`); return; }
     setUrlFetching(true);
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-og-tags", {
-        body: { url },
-      });
+      const { data, error } = await supabase.functions.invoke("fetch-og-tags", { body: { url } });
       if (!error && data?.success && data.data) {
         const og = data.data;
         setForm(p => ({
           ...p,
-          title: p.title || og.siteName || og.title?.split(/[|\-–—]/)[0]?.trim() || domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1),
+          title: p.title || og.siteName || og.title?.split(/[|\-–—]/)[0]?.trim() || domain.split(".")[0],
           description: p.description || og.description?.substring(0, 120) || "",
-          category: p.category === "Career" && !editingResource
-            ? guessCategory(og.title || "", og.description || "")
-            : p.category,
+          category: p.category === "Career" && !editingResource ? guessCategory(og.title || "", og.description || "") : p.category,
         }));
-      } else {
-        // Fallback: just set domain-based title
-        if (!form.title) {
-          setForm(p => ({
-            ...p,
-            title: domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1),
-          }));
-        }
+      } else if (!form.title) {
+        setForm(p => ({ ...p, title: domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1) }));
       }
     } catch {
-      if (!form.title) {
-        setForm(p => ({
-          ...p,
-          title: domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1),
-        }));
-      }
-    } finally {
-      setUrlFetching(false);
-    }
+      if (!form.title) setForm(p => ({ ...p, title: domain.split(".")[0].charAt(0).toUpperCase() + domain.split(".")[0].slice(1) }));
+    } finally { setUrlFetching(false); }
   };
 
   const handleSaveResource = async () => {
     if (!form.title || !form.description) { toast.error("Title and description required"); return; }
     if (!user) return;
-
-    // Final duplicate check before saving
-    const dupName = isDuplicateUrl(form.url, editingResource?.id);
-    if (dupName) {
-      toast.error(`"${dupName}" already exists in the Resource Center. Duplicate resources are not allowed.`);
-      return;
-    }
-
+    const dup = isDuplicateUrl(form.url, editingResource?.id);
+    if (dup) { toast.error(`"${dup}" already exists`); return; }
     setUploading(true);
-
     let thumbnail_url = editingResource?.thumbnail_url || null;
-
-    // Auto-set thumbnail from URL domain
-    if (form.url) {
-      try {
-        const domain = new URL(form.url).hostname.replace('www.', '');
-        thumbnail_url = 'https://logo.clearbit.com/' + domain;
-      } catch {}
-    }
-
-    // Use form thumbnail_url if manually set
-    if (form.thumbnail_url) {
-      thumbnail_url = form.thumbnail_url;
-    }
-
-    const payload = {
-      title: form.title,
-      description: form.description,
-      category: form.category,
-      resource_type: "link",
-      url: form.url || null,
-      file_url: editingResource?.file_url || null,
-      thumbnail_url,
-      published: form.published,
-      user_id: user.id,
-      updated_at: new Date().toISOString(),
-    };
-
+    if (form.url) { try { thumbnail_url = "https://logo.clearbit.com/" + new URL(form.url).hostname.replace("www.", ""); } catch {} }
+    if (form.thumbnail_url) thumbnail_url = form.thumbnail_url;
+    const payload = { title: form.title, description: form.description, category: form.category, resource_type: "link", url: form.url || null, file_url: editingResource?.file_url || null, thumbnail_url, published: form.published, user_id: user.id, updated_at: new Date().toISOString() };
     if (editingResource) {
-      const { data: updateData, error: updateError } = await (supabase as any)
-        .from("resources")
-        .update(payload)
-        .eq("id", editingResource.id)
-        .select();
-
-      if (updateError) {
-        toast.error("Update failed: " + updateError.message);
-        setUploading(false);
-        return;
-      }
-
-      if (!updateData || updateData.length === 0) {
-        toast.error("File uploaded but not saved. Contact support.");
-        setUploading(false);
-        return;
-      }
-
-      setDynamicResources(prev => prev.map(r =>
-        r.id === editingResource.id ? { ...r, ...updateData[0] } : r
-      ));
-      toast.success("Resource updated successfully");
+      const { data: updateData, error } = await (supabase as any).from("resources").update(payload).eq("id", editingResource.id).select();
+      if (error) { toast.error("Update failed: " + error.message); setUploading(false); return; }
+      setDynamicResources(prev => prev.map(r => r.id === editingResource.id ? { ...r, ...updateData[0] } : r));
+      toast.success("Resource updated");
     } else {
-      const { data: insertData, error: insertError } = await (supabase as any)
-        .from("resources")
-        .insert({ ...payload, user_id: user.id })
-        .select();
-
-      if (insertError) {
-        toast.error("Failed: " + insertError.message);
-        setUploading(false);
-        return;
-      }
-
-      if (!insertData || insertData.length === 0) {
-        toast.error("Resource not saved. Contact support.");
-        setUploading(false);
-        return;
-      }
-
+      const { data: insertData, error } = await (supabase as any).from("resources").insert({ ...payload, user_id: user.id }).select();
+      if (error) { toast.error("Failed: " + error.message); setUploading(false); return; }
       setDynamicResources(prev => [insertData[0], ...prev]);
-      toast.success("Resource added successfully");
+      toast.success("Resource added");
     }
-
     setUploading(false);
     setShowAddForm(false);
     resetForm();
@@ -339,36 +223,19 @@ export default function ResourcesPage() {
 
   const handleDeleteResource = async () => {
     if (!deleteConfirm) return;
-    const deleteId = deleteConfirm.id;
-    setDynamicResources(prev => prev.filter(r => r.id !== deleteId));
+    const id = deleteConfirm.id;
+    setDynamicResources(prev => prev.filter(r => r.id !== id));
     setDeleteConfirm(null);
-    const { error } = await (supabase as any).from("resources").delete().eq("id", deleteId);
-    if (error) {
-      toast.error("Delete failed: " + error.message);
-      fetchResources();
-      return;
-    }
-    toast.success("Resource deleted");
+    await (supabase as any).from("resources").delete().eq("id", id);
   };
 
   const handleEditResource = (r: DynamicResource) => {
-    setForm({
-      title: r.title, description: r.description, category: r.category,
-      resource_type: r.resource_type, url: r.url || "", published: r.published,
-      thumbnail_url: r.thumbnail_url || "",
-    });
-    if (r.url) {
-      try {
-        const domain = new URL(r.url).hostname.replace('www.', '');
-        setUrlPreviewDomain(domain);
-        setUrlPreviewLogo('https://logo.clearbit.com/' + domain);
-      } catch {}
-    }
+    setForm({ title: r.title, description: r.description, category: r.category, resource_type: r.resource_type, url: r.url || "", published: r.published, thumbnail_url: r.thumbnail_url || "" });
+    if (r.url) { try { const d = new URL(r.url).hostname.replace("www.", ""); setUrlPreviewDomain(d); setUrlPreviewLogo("https://logo.clearbit.com/" + d); } catch {} }
     setEditingResource(r);
     setShowAddForm(true);
   };
 
-  // Build combined array
   const combinedTools: CombinedTool[] = [
     ...STATIC_RESOURCES.filter(r => {
       const matchCat = activeCategory === "All" || r.category === activeCategory;
@@ -382,110 +249,116 @@ export default function ResourcesPage() {
         const matchSearch = !search || r.title.toLowerCase().includes(search.toLowerCase()) || r.description.toLowerCase().includes(search.toLowerCase());
         return matchCat && matchSearch;
       })
-      .map(r => ({
-        name: r.title,
-        url: r.url || "",
-        category: r.category,
-        desc: r.description,
-        isDynamic: true,
-        dynamicId: r.id,
-        thumbnail_url: r.thumbnail_url,
-        published: r.published,
-      }))
+      .map(r => ({ name: r.title, url: r.url || "", category: r.category, desc: r.description, isDynamic: true, dynamicId: r.id, thumbnail_url: r.thumbnail_url, published: r.published })),
   ];
 
   const getDynamicResource = (id: string) => dynamicResources.find(r => r.id === id);
 
   const getIconForTool = (tool: CombinedTool) => {
-    if (tool.isDynamic) {
-      if (tool.thumbnail_url) {
-        return (
-          <img src={tool.thumbnail_url} alt={tool.name}
-            style={{ width: 24, height: 24, borderRadius: 4, objectFit: "contain" }}
-            onError={e => {
-              const el = e.target as HTMLImageElement;
-              el.style.display = "none";
-              const parent = el.parentElement;
-              if (parent) {
-                parent.innerHTML = '<span style="font-size:16px;font-weight:700;color:#6B7280">' + tool.name.charAt(0).toUpperCase() + '</span>';
-              }
-            }}
-          />
-        );
-      }
-      if (tool.url) {
-        const favicon = getFaviconUrl(tool.url);
-        if (favicon) {
-          return (
-            <img src={favicon} alt={tool.name}
-              style={{ width: 24, height: 24, borderRadius: 4 }}
-              onError={e => {
-                const el = e.target as HTMLImageElement;
-                el.style.display = "none";
-                const parent = el.parentElement;
-                if (parent) {
-                  parent.innerHTML = '<span style="font-size:16px;font-weight:700;color:#6B7280">' + tool.name.charAt(0).toUpperCase() + '</span>';
-                }
-              }}
-            />
-          );
-        }
-      }
-      return <span style={{ fontSize: 16, fontWeight: 700, color: "#6B7280" }}>{tool.name.charAt(0).toUpperCase()}</span>;
-    }
-    // Static tool
-    const favicon = getFaviconUrl(tool.url);
-    if (favicon) {
-      return (
-        <img src={favicon} alt={tool.name} style={{ width: 24, height: 24, borderRadius: 4 }}
-          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
-      );
-    }
-    return <Sparkles size={18} color={text2} />;
+    const src = tool.isDynamic
+      ? (tool.thumbnail_url || (tool.url ? getFaviconUrl(tool.url) : null))
+      : getFaviconUrl(tool.url);
+    if (src) return <img src={src} alt={tool.name} style={{ width: 24, height: 24, borderRadius: 4, objectFit: "contain" }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />;
+    return <span style={{ fontSize: 16, fontWeight: 700, color: "#6B7280" }}>{tool.name.charAt(0).toUpperCase()}</span>;
   };
+
+  // Derived banner color from user accent if not overridden
+  const effectiveBannerColor = bannerColor || settingsAccent;
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 16px 80px" }}>
-      <div style={{ padding: "28px 0 24px", borderBottom: `1px solid ${border}`, marginBottom: 24, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: text1, fontFamily: "Inter, sans-serif", letterSpacing: "-0.3px", margin: 0, marginBottom: 4 }}>
-            Resource Center
-          </h1>
-          <p style={{ fontSize: 14, color: text2, fontFamily: "Inter, sans-serif", margin: 0 }}>
-            Tools and resources to level up your workflow
-          </p>
+
+      {/* ── EDITABLE BANNER ─────────────────────────── */}
+      <div
+        style={{
+          margin: "0 -16px 24px",
+          padding: isMobile ? "32px 20px 28px" : "36px 40px 32px",
+          background: `linear-gradient(135deg, ${effectiveBannerColor}ee 0%, ${effectiveBannerColor}99 100%)`,
+          position: "relative" as const,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <h1 style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: "white", margin: "0 0 6px", textShadow: "0 1px 3px rgba(0,0,0,0.2)" }}>Resource Center</h1>
+            {editingBanner ? (
+              <input
+                autoFocus
+                value={bannerTextDraft}
+                onChange={e => setBannerTextDraft(e.target.value)}
+                onBlur={() => {}}
+                style={{ background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.4)", borderRadius: 8, padding: "4px 10px", color: "white", fontSize: 14, width: "100%", maxWidth: 500, outline: "none", fontFamily: "Inter, sans-serif" }}
+              />
+            ) : (
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.85)", margin: 0 }}>{bannerText}</p>
+            )}
+          </div>
+
+          {/* Edit banner button */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {editingBanner ? (
+              <>
+                {/* Color swatches */}
+                <div style={{ display: "flex", gap: 4, flexWrap: "wrap", maxWidth: 180 }}>
+                  {DEFAULT_BANNER_COLORS.map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setBannerColorDraft(c)}
+                      style={{
+                        width: 22, height: 22, borderRadius: "50%", background: c, border: bannerColorDraft === c ? "2px solid white" : "2px solid transparent",
+                        cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                      }}
+                    />
+                  ))}
+                  {/* Custom color picker */}
+                  <input
+                    type="color"
+                    value={bannerColorDraft}
+                    onChange={e => setBannerColorDraft(e.target.value)}
+                    style={{ width: 22, height: 22, borderRadius: "50%", border: "2px solid white", cursor: "pointer", padding: 0, overflow: "hidden" }}
+                    title="Custom color"
+                  />
+                </div>
+                <button
+                  onClick={() => { setBannerColor(bannerColorDraft); setBannerText(bannerTextDraft); setEditingBanner(false); }}
+                  style={{ padding: "6px 14px", background: "white", color: effectiveBannerColor, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+                >Save</button>
+                <button
+                  onClick={() => { setBannerTextDraft(bannerText); setBannerColorDraft(bannerColor); setEditingBanner(false); }}
+                  style={{ padding: "6px 10px", background: "rgba(0,0,0,0.2)", color: "white", border: "none", borderRadius: 8, fontSize: 13, cursor: "pointer" }}
+                >Cancel</button>
+              </>
+            ) : (
+              <button
+                onClick={() => { setBannerTextDraft(bannerText); setBannerColorDraft(bannerColor); setEditingBanner(true); }}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.35)", borderRadius: 8, color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+              >
+                <Edit2 size={13} /> Edit Banner
+              </button>
+            )}
+            {isAdmin && !editingBanner && (
+              <button
+                onClick={() => { resetForm(); setShowAddForm(true); }}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "white", color: effectiveBannerColor, border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer" }}
+              >
+                <Plus size={14} /> Add Resource
+              </button>
+            )}
+          </div>
         </div>
-        {isAdmin && (
-          <button
-            onClick={() => { resetForm(); setShowAddForm(true); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "10px 18px", background: "#10B981", color: "white",
-              border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600,
-              cursor: "pointer", minHeight: 44,
-            }}
-          >
-            <Plus size={15} /> Add Resource
-          </button>
-        )}
       </div>
 
-      {/* Search */}
+      {/* ── SEARCH ──────────────────────────────────── */}
       <div style={{ position: "relative", marginBottom: 16 }}>
         <Search size={16} color={text2} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search tools..."
-          style={{
-            width: "100%", padding: "10px 14px 10px 40px", border: `1.5px solid ${inputBorder}`,
-            borderRadius: 10, fontSize: 14, color: text1, fontFamily: "Inter, sans-serif",
-            outline: "none", background: inputBg, boxSizing: "border-box" as const,
-          }}
+          style={{ width: "100%", padding: "10px 14px 10px 40px", border: `1.5px solid ${inputBorder}`, borderRadius: 10, fontSize: 14, color: text1, outline: "none", background: inputBg, boxSizing: "border-box" as const }}
         />
       </div>
 
-      {/* Category pills */}
+      {/* ── CATEGORY PILLS ──────────────────────────── */}
       <div style={{ display: "flex", gap: 6, marginBottom: 24, overflowX: isMobile ? "auto" : undefined, flexWrap: isMobile ? "nowrap" : "wrap", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" as const }}>
         {STATIC_CATEGORIES.map(cat => (
           <button
@@ -493,69 +366,38 @@ export default function ResourcesPage() {
             onClick={() => setActiveCategory(cat)}
             style={{
               padding: "6px 14px", borderRadius: 999, border: "1.5px solid",
-              borderColor: activeCategory === cat ? "#10B981" : inputBorder,
-              background: activeCategory === cat ? (isDark ? "rgba(16,185,129,0.15)" : "#F0FDF4") : inputBg,
-              color: activeCategory === cat ? (isDark ? "#10B981" : "#065F46") : text2,
+              borderColor: activeCategory === cat ? effectiveBannerColor : inputBorder,
+              background: activeCategory === cat ? (isDark ? `${effectiveBannerColor}25` : `${effectiveBannerColor}15`) : inputBg,
+              color: activeCategory === cat ? effectiveBannerColor : text2,
               fontSize: 12, fontWeight: activeCategory === cat ? 600 : 400,
-              cursor: "pointer", fontFamily: "Inter, sans-serif", transition: "all 150ms",
-              flexShrink: 0, whiteSpace: "nowrap",
+              cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap", transition: "all 150ms",
             }}
-          >
-            {cat}
-          </button>
+          >{cat}</button>
         ))}
       </div>
 
-      {/* Unified tools grid */}
+      {/* ── TOOLS GRID ──────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
         {combinedTools.map(tool => (
           <div
             key={tool.isDynamic ? tool.dynamicId : tool.name}
-            onClick={() => {
-              if (tool.url) {
-                const a = document.createElement("a");
-                a.href = tool.url; a.target = "_blank"; a.rel = "noopener noreferrer";
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-              }
-            }}
-            style={{
-              display: "flex", alignItems: "center", gap: 12, padding: 16,
-              background: cardBg, border: `1px solid ${border}`, borderRadius: 14,
-              cursor: "pointer", textAlign: "left" as const, transition: "all 150ms", width: "100%",
-              position: "relative" as const,
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#10B981"; }}
+            onClick={() => { if (tool.url) { const a = document.createElement("a"); a.href = tool.url; a.target = "_blank"; a.rel = "noopener noreferrer"; document.body.appendChild(a); a.click(); document.body.removeChild(a); } }}
+            style={{ display: "flex", alignItems: "center", gap: 12, padding: 16, background: cardBg, border: `1px solid ${border}`, borderRadius: 14, cursor: "pointer", transition: "all 150ms", position: "relative" as const }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = effectiveBannerColor; }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = border; }}
           >
-            <div style={{
-              width: 40, height: 40, borderRadius: 10, background: isDark ? "#252528" : "#F9FAFB",
-              display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden",
-            }}>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: isDark ? "#252528" : "#F9FAFB", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
               {getIconForTool(tool)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: text1, fontFamily: "Inter, sans-serif", margin: 0, marginBottom: 2 }}>{tool.name}</p>
-              <p style={{ fontSize: 12, color: text2, fontFamily: "Inter, sans-serif", margin: 0, whiteSpace: "nowrap" as const, overflow: "hidden", textOverflow: "ellipsis" }}>{tool.desc}</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: text1, margin: "0 0 2px" }}>{tool.name}</p>
+              <p style={{ fontSize: 12, color: text2, margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{tool.desc}</p>
             </div>
             <ExternalLink size={14} color={text2} style={{ flexShrink: 0 }} />
             {tool.isDynamic && isAdmin && tool.dynamicId && (
               <div style={{ display: "flex", gap: 4, position: "absolute" as const, top: 8, right: 8 }}>
-                <button
-                  onClick={e => { e.stopPropagation(); const dr = getDynamicResource(tool.dynamicId!); if (dr) handleEditResource(dr); }}
-                  style={{
-                    width: 24, height: 24, background: "rgba(0,0,0,0.4)",
-                    border: "none", borderRadius: "50%", color: "white", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11,
-                  }}
-                >✎</button>
-                <button
-                  onClick={e => { e.stopPropagation(); const dr = getDynamicResource(tool.dynamicId!); if (dr) setDeleteConfirm(dr); }}
-                  style={{
-                    width: 24, height: 24, background: "rgba(220,38,38,0.7)",
-                    border: "none", borderRadius: "50%", color: "white", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14,
-                  }}
-                >×</button>
+                <button onClick={e => { e.stopPropagation(); const dr = getDynamicResource(tool.dynamicId!); if (dr) handleEditResource(dr); }} style={{ width: 24, height: 24, background: "rgba(0,0,0,0.4)", border: "none", borderRadius: "50%", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11 }}>✎</button>
+                <button onClick={e => { e.stopPropagation(); const dr = getDynamicResource(tool.dynamicId!); if (dr) setDeleteConfirm(dr); }} style={{ width: 24, height: 24, background: "rgba(220,38,38,0.7)", border: "none", borderRadius: "50%", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>×</button>
               </div>
             )}
           </div>
@@ -564,265 +406,53 @@ export default function ResourcesPage() {
 
       {combinedTools.length === 0 && (
         <div style={{ textAlign: "center", padding: "48px 0" }}>
-          <p style={{ fontSize: 14, color: text2, fontFamily: "Inter, sans-serif" }}>No tools found matching your search.</p>
+          <p style={{ fontSize: 14, color: text2 }}>No tools found matching your search.</p>
         </div>
       )}
 
-      {/* Add/Edit Resource Modal (Admin Only) */}
+      {/* ── ADD/EDIT MODAL ───────────────────────────── */}
       {showAddForm && isAdmin && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
-          display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 16,
-        }} onClick={() => { setShowAddForm(false); resetForm(); }}>
-          <div style={{
-            width: "100%", maxWidth: isMobile ? "100%" : 520, background: isDark ? "#1C1C1E" : "white",
-            borderRadius: isMobile ? "16px 16px 0 0" : 16, padding: isMobile ? "20px 16px" : 28,
-            maxHeight: isMobile ? "95vh" : "90vh", overflowY: "auto",
-            paddingBottom: isMobile ? "calc(20px + env(safe-area-inset-bottom, 0px))" : 28,
-          }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 16 }} onClick={() => { setShowAddForm(false); resetForm(); }}>
+          <div style={{ width: "100%", maxWidth: isMobile ? "100%" : 520, background: isDark ? "#1C1C1E" : "white", borderRadius: isMobile ? "16px 16px 0 0" : 16, padding: isMobile ? "20px 16px" : 28, maxHeight: "90vh", overflowY: "auto", paddingBottom: isMobile ? "calc(20px + env(safe-area-inset-bottom,0px))" : 28 }} onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: text1, fontFamily: "Inter, sans-serif", margin: 0 }}>
-                {editingResource ? "Edit Resource" : "Add Resource"}
-              </h3>
-              <button onClick={() => { setShowAddForm(false); resetForm(); }} style={{ padding: 6, border: "none", background: "transparent", cursor: "pointer" }}>
-                <X size={18} color={text2} />
-              </button>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: text1, margin: 0 }}>{editingResource ? "Edit Resource" : "Add Resource"}</h3>
+              <button onClick={() => { setShowAddForm(false); resetForm(); }} style={{ padding: 6, border: "none", background: "transparent", cursor: "pointer" }}><X size={18} color={text2} /></button>
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {/* URL */}
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: text2, display: "block", marginBottom: 4 }}>Resource URL</label>
                 <div style={{ position: "relative" }}>
-                  <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))}
-                    onBlur={() => autoPopulateFromUrl(form.url)}
-                    type="url"
-                    placeholder="https://..."
-                    style={{
-                      width: "100%", padding: "10px 14px", border: `1.5px solid ${inputBorder}`,
-                      borderRadius: 10, fontSize: 16, color: text1, background: inputBg,
-                      outline: "none", boxSizing: "border-box" as const,
-                      minHeight: 48,
-                    }}
-                  />
-                  {urlFetching && (
-                    <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}>
-                      <Loader2 size={16} color="#10B981" className="animate-spin" />
-                    </div>
-                  )}
+                  <input value={form.url} onChange={e => setForm(p => ({ ...p, url: e.target.value }))} onBlur={() => autoPopulateFromUrl(form.url)} type="url" placeholder="https://..." style={{ width: "100%", padding: "10px 14px", border: `1.5px solid ${inputBorder}`, borderRadius: 10, fontSize: 16, color: text1, background: inputBg, outline: "none", boxSizing: "border-box" as const, minHeight: 48 }} />
+                  {urlFetching && <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)" }}><Loader2 size={16} color="#10B981" className="animate-spin" /></div>}
                 </div>
-                {urlPreviewLogo && (
-                  <div style={{
-                    display: "flex", alignItems: "center", gap: 8, marginTop: 6,
-                    padding: "6px 10px",
-                    background: isDark ? "#252528" : "#F9FAFB",
-                    borderRadius: 8, width: "fit-content",
-                  }}>
-                    <img
-                      src={urlPreviewLogo}
-                      alt=""
-                      style={{ width: 20, height: 20, borderRadius: 4 }}
-                      onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                    <span style={{ fontSize: 12, color: text2, fontFamily: "Inter, sans-serif" }}>
-                      {urlPreviewDomain}
-                    </span>
-                  </div>
-                )}
+                {urlPreviewLogo && <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, padding: "6px 10px", background: isDark ? "#252528" : "#F9FAFB", borderRadius: 8, width: "fit-content" }}><img src={urlPreviewLogo} alt="" style={{ width: 20, height: 20, borderRadius: 4 }} onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} /><span style={{ fontSize: 12, color: text2 }}>{urlPreviewDomain}</span></div>}
               </div>
-
-              {/* Title */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: text2, display: "block", marginBottom: 4 }}>Name *</label>
-                <input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                  placeholder="e.g. Notion, Shopify..."
-                  style={{
-                    width: "100%", padding: "10px 14px", border: `1.5px solid ${inputBorder}`,
-                    borderRadius: 10, fontSize: 16, color: text1, background: inputBg,
-                    outline: "none", boxSizing: "border-box" as const,
-                    minHeight: 48,
-                  }}
-                />
-              </div>
-
-              {/* Description */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: text2, display: "block", marginBottom: 4 }}>Short description *</label>
-                <textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  placeholder="What does this tool do?"
-                  rows={2}
-                  style={{
-                    width: "100%", padding: "10px 14px", border: `1.5px solid ${inputBorder}`,
-                    borderRadius: 10, fontSize: 16, color: text1, background: inputBg,
-                    outline: "none", resize: "vertical", boxSizing: "border-box" as const,
-                    fontFamily: "Inter, sans-serif", minHeight: 48,
-                  }}
-                />
-              </div>
-
-              {/* Category */}
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: text2, display: "block", marginBottom: 4 }}>Category</label>
-                <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
-                  style={{
-                    width: "100%", padding: "10px 14px", border: `1.5px solid ${inputBorder}`,
-                    borderRadius: 10, fontSize: 16, color: text1, background: inputBg, cursor: "pointer",
-                    minHeight: 48,
-                  }}>
-                  {STATIC_CATEGORIES.filter(c => c !== "All").map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-
-              {/* Published toggle */}
+              <div><label style={{ fontSize: 12, fontWeight: 600, color: text2, display: "block", marginBottom: 4 }}>Name *</label><input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Notion, Shopify..." style={{ width: "100%", padding: "10px 14px", border: `1.5px solid ${inputBorder}`, borderRadius: 10, fontSize: 16, color: text1, background: inputBg, outline: "none", boxSizing: "border-box" as const, minHeight: 48 }} /></div>
+              <div><label style={{ fontSize: 12, fontWeight: 600, color: text2, display: "block", marginBottom: 4 }}>Short description *</label><textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="What does this tool do?" rows={2} style={{ width: "100%", padding: "10px 14px", border: `1.5px solid ${inputBorder}`, borderRadius: 10, fontSize: 16, color: text1, background: inputBg, outline: "none", resize: "vertical", boxSizing: "border-box" as const, fontFamily: "Inter, sans-serif", minHeight: 48 }} /></div>
+              <div><label style={{ fontSize: 12, fontWeight: 600, color: text2, display: "block", marginBottom: 4 }}>Category</label><select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))} style={{ width: "100%", padding: "10px 14px", border: `1.5px solid ${inputBorder}`, borderRadius: 10, fontSize: 16, color: text1, background: inputBg, cursor: "pointer", minHeight: 48 }}>{STATIC_CATEGORIES.filter(c => c !== "All").map(c => <option key={c} value={c}>{c}</option>)}</select></div>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <button
-                  onClick={() => setForm(p => ({ ...p, published: !p.published }))}
-                  style={{
-                    width: 44, height: 24, borderRadius: 12, border: "none",
-                    background: form.published ? "#10B981" : (isDark ? "#333" : "#D1D5DB"),
-                    cursor: "pointer", position: "relative", transition: "background 150ms",
-                  }}
-                >
-                  <div style={{
-                    width: 18, height: 18, borderRadius: "50%", background: "white",
-                    position: "absolute", top: 3,
-                    left: form.published ? 23 : 3, transition: "left 150ms",
-                  }} />
+                <button onClick={() => setForm(p => ({ ...p, published: !p.published }))} style={{ width: 44, height: 24, borderRadius: 12, border: "none", background: form.published ? "#10B981" : (isDark ? "#333" : "#D1D5DB"), cursor: "pointer", position: "relative", transition: "background 150ms" }}>
+                  <div style={{ width: 18, height: 18, borderRadius: "50%", background: "white", position: "absolute", top: 3, left: form.published ? 23 : 3, transition: "left 150ms" }} />
                 </button>
-                <span style={{ fontSize: 13, color: text1, fontWeight: 500 }}>
-                  {form.published ? "Published (visible to all)" : "Draft (admin only)"}
-                </span>
+                <span style={{ fontSize: 13, color: text1, fontWeight: 500 }}>{form.published ? "Published" : "Draft"}</span>
               </div>
             </div>
-
-            {/* Save button */}
-            <button
-              onClick={handleSaveResource}
-              disabled={uploading}
-              style={{
-                width: "100%", marginTop: 20, padding: "12px 24px",
-                background: "#10B981", color: "white", border: "none",
-                borderRadius: 10, fontSize: 14, fontWeight: 600,
-                cursor: uploading ? "not-allowed" : "pointer", minHeight: 44,
-                opacity: uploading ? 0.6 : 1,
-              }}
-            >
+            <button onClick={handleSaveResource} disabled={uploading} style={{ width: "100%", marginTop: 20, padding: "12px 24px", background: "#10B981", color: "white", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: uploading ? "not-allowed" : "pointer", minHeight: 44, opacity: uploading ? 0.6 : 1 }}>
               {uploading ? "Saving..." : editingResource ? "Save Changes" : "Add Resource"}
             </button>
           </div>
         </div>
       )}
 
-      {/* Delete confirmation */}
+      {/* ── DELETE CONFIRM ───────────────────────────── */}
       {deleteConfirm && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
-        }} onClick={() => setDeleteConfirm(null)}>
-          <div style={{
-            width: "100%", maxWidth: 360, background: isDark ? "#1C1C1E" : "white",
-            borderRadius: 16, padding: 24, textAlign: "center",
-          }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setDeleteConfirm(null)}>
+          <div style={{ width: "100%", maxWidth: 360, background: isDark ? "#1C1C1E" : "white", borderRadius: 16, padding: 24, textAlign: "center" }} onClick={e => e.stopPropagation()}>
             <p style={{ fontSize: 18, fontWeight: 700, color: text1, marginBottom: 8 }}>Delete this resource?</p>
             <p style={{ fontSize: 14, color: text2, marginBottom: 20 }}>{deleteConfirm.title}</p>
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setDeleteConfirm(null)} style={{
-                flex: 1, padding: "10px 16px", border: `1.5px solid ${inputBorder}`,
-                borderRadius: 10, background: "transparent", color: text1,
-                fontSize: 14, fontWeight: 500, cursor: "pointer", minHeight: 44,
-              }}>Cancel</button>
-              <button onClick={handleDeleteResource} style={{
-                flex: 1, padding: "10px 16px", background: "#DC2626", color: "white",
-                border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600,
-                cursor: "pointer", minHeight: 44,
-              }}>Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Preview Modal */}
-      {previewResource && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 9999,
-          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
-        }} onClick={() => setPreviewResource(null)}>
-          <div style={{
-            width: "100%", maxWidth: 700, height: "80vh",
-            background: isDark ? "#1C1C1E" : "white", borderRadius: 16,
-            overflow: "hidden", position: "relative", display: "flex", flexDirection: "column",
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center",
-              padding: "14px 20px", borderBottom: `1px solid ${border}`,
-            }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: text1, fontFamily: "Inter, sans-serif", margin: 0 }}>
-                {previewResource.title}
-              </p>
-              <button onClick={() => setPreviewResource(null)} style={{
-                padding: 6, border: "none", background: "transparent", cursor: "pointer",
-              }}>
-                <X size={18} color={text2} />
-              </button>
-            </div>
-            <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-              {previewResource.file_url ? (
-                <iframe
-                  src={previewResource.file_url}
-                  style={{ width: "100%", height: "100%", border: "none" }}
-                  title="Document preview"
-                />
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-                  <p style={{ color: text2, fontSize: 14 }}>No file available</p>
-                </div>
-              )}
-              {!isAdmin && previewResource.file_url && (
-                <div style={{
-                  position: "absolute", top: "30%", left: 0, right: 0, bottom: 0,
-                  backdropFilter: "blur(8px)", background: "rgba(255,255,255,0.1)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <div style={{
-                    background: isDark ? "#1C1C1E" : "white",
-                    borderRadius: 16, padding: "32px 28px", textAlign: "center",
-                    boxShadow: "0 8px 32px rgba(0,0,0,0.15)", maxWidth: 320,
-                    border: `1px solid ${border}`,
-                  }}>
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={text2} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: "0 auto 16px", display: "block" }}>
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    <p style={{ fontSize: 16, fontWeight: 700, color: text1, fontFamily: "Inter, sans-serif", margin: "0 0 8px" }}>
-                      Purchase to unlock full access
-                    </p>
-                    <button
-                      onClick={() => { window.location.href = SINGLE_STRIPE_URL; }}
-                      style={{
-                        width: "100%", padding: "12px 20px", background: "#10B981",
-                        color: "white", border: "none", borderRadius: 10,
-                        fontSize: 14, fontWeight: 600, cursor: "pointer", minHeight: 44,
-                        marginBottom: 10,
-                      }}
-                    >
-                      Download Template
-                    </button>
-                    <button
-                      onClick={() => { window.location.href = BUNDLE_STRIPE_URL; }}
-                      style={{
-                        background: "none", border: "none", color: "#7B5EA7",
-                        fontSize: 13, fontWeight: 600, cursor: "pointer",
-                        fontFamily: "Inter, sans-serif",
-                      }}
-                    >
-                      Or get all templates for $25
-                    </button>
-                  </div>
-                </div>
-              )}
+              <button onClick={() => setDeleteConfirm(null)} style={{ flex: 1, padding: "10px 16px", border: `1.5px solid ${inputBorder}`, borderRadius: 10, background: "transparent", color: text1, fontSize: 14, fontWeight: 500, cursor: "pointer", minHeight: 44 }}>Cancel</button>
+              <button onClick={handleDeleteResource} style={{ flex: 1, padding: "10px 16px", background: "#DC2626", color: "white", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer", minHeight: 44 }}>Delete</button>
             </div>
           </div>
         </div>

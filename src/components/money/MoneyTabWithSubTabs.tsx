@@ -7,6 +7,8 @@ import MoneyOverview from "./overview/MoneyOverview";
 import DebtTab from "./DebtTab";
 import InvestingTab from "./InvestingTab";
 import PlaidConnectButton from "./PlaidConnectButton";
+import FinancialDocUpload from "./FinancialDocUpload";
+import TaxReceiptTracker from "./TaxReceiptTracker";
 import { usePlaidConnection } from "@/hooks/usePlaidConnection";
 import { PlaidBannerFront, PlaidBannerBack } from "./cards/PlaidBanner";
 import { NetWorthFront, NetWorthBack } from "./cards/NetWorthCard";
@@ -84,25 +86,6 @@ const PREMIUM_CARD_IDS = new Set([
 
 function noop() {}
 
-// Icon circle button for top-right toolbar
-function MoneyToolButton({ icon: Icon, label, color, onClick }: { icon: any; label: string; color: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      title={label}
-      className="flex flex-col items-center gap-1 group"
-    >
-      <div
-        className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm transition-transform group-hover:scale-110 border border-white/20"
-        style={{ background: color }}
-      >
-        <Icon className="w-5 h-5 text-white" />
-      </div>
-      <span className="text-[10px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">{label}</span>
-    </button>
-  );
-}
-
 export default function MoneyTabWithSubTabs() {
   const { cardOrder, hiddenCards, updateCardOrder, hideCard, restoreCard, restoreAll } = useMoneyPreferences();
   const { isPremium } = usePremiumStatus();
@@ -112,8 +95,9 @@ export default function MoneyTabWithSubTabs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [trackFinanceOpen, setTrackFinanceOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  // State to scroll to / open tools in Overview
-  const [focusTool, setFocusTool] = useState<"doc" | "tax" | null>(null);
+  // Modals for tool buttons — open immediately when clicked
+  const [docModalOpen, setDocModalOpen] = useState(false);
+  const [taxModalOpen, setTaxModalOpen] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -174,80 +158,124 @@ export default function MoneyTabWithSubTabs() {
     }
   }
 
-  // Scroll to tool section when circle icon is clicked
-  const handleToolClick = (tool: "doc" | "tax") => {
-    if (activeTab !== "overview") setActiveTab("overview");
-    setFocusTool(tool);
-    setTimeout(() => {
-      const id = tool === "doc" ? "money-doc-upload" : "money-tax-tracker";
-      const el = document.getElementById(id);
-      if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); el.classList.add("ring-2", "ring-violet-400"); setTimeout(() => el.classList.remove("ring-2", "ring-violet-400"), 1500); }
-    }, 100);
-  };
-
   return (
     <div className="money-tab-root">
       <div className="money-tab-stack">
-        {/* Header row */}
-        <div className="mb-4">
-          <div className="flex items-start justify-between flex-wrap gap-3">
+
+        {/* ── HEADER ─────────────────────────────────── */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
             <div>
               <h1 className="text-[28px] font-bold text-foreground tracking-tight">Money</h1>
               <p className="text-sm text-muted-foreground mt-0.5">Your complete financial picture</p>
             </div>
-            {/* Right side: tool circle icons + connect button */}
-            <div className="flex items-center gap-4">
-              {/* AI Doc Upload icon */}
-              <MoneyToolButton
-                icon={Sparkles}
-                label="Import"
-                color="#7C3AED"
-                onClick={() => handleToolClick("doc")}
-              />
-              {/* Tax Tracker icon */}
-              <MoneyToolButton
-                icon={FileSpreadsheet}
-                label="Receipts"
-                color="#D97706"
-                onClick={() => handleToolClick("tax")}
-              />
-              {/* Real Plaid connect button */}
-              <PlaidConnectButton />
-              {activeTab !== "overview" && (
-                <button onClick={() => setTrackFinanceOpen(true)}
-                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-5 py-2.5 text-sm font-semibold transition-all">
-                  <Plus className="w-4 h-4" /> Add Card
-                </button>
-              )}
-            </div>
+            {/* Connect Bank — top right */}
+            <PlaidConnectButton />
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex items-center border-b border-border">
+        {/* ── TAB ROW + TOOL ICONS ───────────────────── */}
+        {/* Tool icons sit to the RIGHT of the tab pills, all in one flex row */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
+          {/* Tab pills */}
+          <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid hsl(var(--border))", gap: 0 }}>
             {TABS.map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 -mb-px ${
-                  activeTab === tab.id ? "border-success text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}>{tab.label}</button>
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  padding: "10px 16px",
+                  fontSize: 14,
+                  fontWeight: activeTab === tab.id ? 600 : 400,
+                  color: activeTab === tab.id ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
+                  background: "transparent",
+                  border: "none",
+                  borderBottom: `2px solid ${activeTab === tab.id ? "hsl(var(--success))" : "transparent"}`,
+                  marginBottom: -1,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap" as const,
+                  transition: "all 150ms",
+                }}
+              >{tab.label}</button>
             ))}
           </div>
-          {activeTab !== "overview" && (
-            <div className="flex-1 flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 ml-2">
-              <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-              <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search cards..."
-                className="bg-transparent border-none outline-none text-sm text-foreground w-full placeholder:text-muted-foreground" />
-              {searchQuery && <button onClick={() => setSearchQuery("")}><X className="w-4 h-4 text-muted-foreground" /></button>}
-            </div>
-          )}
+
+          {/* Tool icon circles — adjacent right of tabs */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* AI Import icon */}
+            <button
+              onClick={() => setDocModalOpen(true)}
+              title="AI Document Import"
+              style={{
+                display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
+                background: "transparent", border: "none", cursor: "pointer", padding: 0,
+              }}
+            >
+              <div style={{
+                width: 38, height: 38, borderRadius: "50%",
+                background: "#7C3AED",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 2px 8px rgba(124,58,237,0.35)",
+                transition: "transform 150ms",
+              }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "scale(1.1)"}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = "scale(1)"}
+              >
+                <Sparkles style={{ width: 17, height: 17, color: "white" }} />
+              </div>
+              <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>Import</span>
+            </button>
+
+            {/* Tax Receipts icon — brighter orange */}
+            <button
+              onClick={() => setTaxModalOpen(true)}
+              title="Tax Receipt Tracker"
+              style={{
+                display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
+                background: "transparent", border: "none", cursor: "pointer", padding: 0,
+              }}
+            >
+              <div style={{
+                width: 38, height: 38, borderRadius: "50%",
+                background: "#F97316",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 2px 8px rgba(249,115,22,0.35)",
+                transition: "transform 150ms",
+              }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "scale(1.1)"}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = "scale(1)"}
+              >
+                <FileSpreadsheet style={{ width: 17, height: 17, color: "white" }} />
+              </div>
+              <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>Receipts</span>
+            </button>
+
+            {/* Add Card — only non-overview tabs */}
+            {activeTab !== "overview" && (
+              <button
+                onClick={() => setTrackFinanceOpen(true)}
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 py-2 text-sm font-semibold transition-all"
+              >
+                <Plus className="w-4 h-4" /> Add Card
+              </button>
+            )}
+
+            {activeTab !== "overview" && (
+              <div className="flex-1 flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2" style={{ minWidth: 180 }}>
+                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search cards..."
+                  className="bg-transparent border-none outline-none text-sm text-foreground w-full placeholder:text-muted-foreground" />
+                {searchQuery && <button onClick={() => setSearchQuery("")}><X className="w-4 h-4 text-muted-foreground" /></button>}
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* ── PLAID STATUS: only shown when connected/disconnected, not as a banner blocker */}
+
+        {/* ── TAB CONTENT ───────────────────────────── */}
         {activeTab === "overview" ? (
-          // Wrap overview content with anchored IDs for scroll-to
-          <div>
-            <MoneyOverview />
-          </div>
+          <MoneyOverview />
         ) : activeTab === "debt" ? (
           <DebtTab />
         ) : activeTab === "investing" ? (
@@ -296,7 +324,64 @@ export default function MoneyTabWithSubTabs() {
           </>
         )}
       </div>
+
       <TrackFinanceModal open={trackFinanceOpen} onClose={() => setTrackFinanceOpen(false)} existingCardIds={cardOrder} onAddCards={handleAddCards} plaidConnected={plaid.isConnected} />
+
+      {/* ── AI DOC IMPORT MODAL ─────────────────────── */}
+      {docModalOpen && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setDocModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-violet-600" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground">AI Document Import</h3>
+              </div>
+              <button onClick={() => setDocModalOpen(false)} className="p-1 hover:bg-muted rounded-full">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="p-4">
+              <FinancialDocUpload inModal />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAX RECEIPT MODAL ──────────────────────── */}
+      {taxModalOpen && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-start justify-center overflow-y-auto py-8 px-4"
+          onClick={() => setTaxModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                  <FileSpreadsheet className="w-4 h-4 text-orange-500" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground">Tax Receipt Tracker</h3>
+              </div>
+              <button onClick={() => setTaxModalOpen(false)} className="p-1 hover:bg-muted rounded-full">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="p-4">
+              <TaxReceiptTracker inModal />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

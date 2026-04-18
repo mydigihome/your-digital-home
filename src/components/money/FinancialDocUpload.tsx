@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, X, FileText, Sparkles, CheckCircle, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Upload, X, FileText, Sparkles, CheckCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -22,14 +22,16 @@ interface ExtractedField {
   key: string;
   label: string;
   value: string;
-  confidence: "high" | "medium" | "low";
 }
 
-export default function FinancialDocUpload() {
+interface Props {
+  inModal?: boolean;
+}
+
+export default function FinancialDocUpload({ inModal }: Props) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -84,7 +86,7 @@ export default function FinancialDocUpload() {
 
       const fields: ExtractedField[] = Object.entries(parsed)
         .filter(([_, v]) => v !== null && v !== undefined)
-        .map(([key, value]) => ({ key, label: FIELD_LABELS[key] || key, value: String(value), confidence: "high" as const }));
+        .map(([key, value]) => ({ key, label: FIELD_LABELS[key] || key, value: String(value) }));
 
       if (fields.length === 0) {
         toast.error("No financial data found. Try a bank statement, pay stub, or financial summary.");
@@ -94,7 +96,7 @@ export default function FinancialDocUpload() {
 
       setExtracted(fields);
       setSelected(new Set(fields.map(f => f.key)));
-    } catch (err) {
+    } catch {
       toast.error("Extraction failed. Ensure the document is readable.");
     } finally {
       setExtracting(false);
@@ -135,74 +137,77 @@ export default function FinancialDocUpload() {
   };
 
   return (
-    <div id="money-doc-upload" className="bg-card border border-border rounded-xl p-5 mt-4 scroll-mt-4">
-      <button onClick={() => setOpen(v => !v)} className="w-full flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-violet-600" />
+    <div className="space-y-4">
+      {!file ? (
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="w-full flex flex-col items-center justify-center gap-3 py-10 rounded-xl border-2 border-dashed border-border hover:border-violet-400 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 transition-all cursor-pointer"
+        >
+          <Upload className="w-8 h-8 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-semibold text-foreground">Drop a financial document</p>
+            <p className="text-xs text-muted-foreground mt-1">Bank statement · Pay stub · Tax summary · PDF or image</p>
           </div>
-          <div className="text-left">
-            <p className="text-sm font-semibold text-foreground">AI Document Import</p>
-            <p className="text-xs text-muted-foreground">Upload a bank statement, pay stub, or tax doc to auto-fill your fields</p>
+        </button>
+      ) : (
+        <div className="p-3 rounded-xl bg-muted/40 border border-border flex items-center gap-3">
+          <FileText className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
+            <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
           </div>
+          <button onClick={reset} className="p-1 hover:bg-muted rounded">
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
         </div>
-        {open ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-      </button>
+      )}
 
-      {open && (
-        <div className="mt-4 space-y-4">
-          {!file ? (
-            <button onClick={() => fileRef.current?.click()} className="w-full flex flex-col items-center justify-center gap-3 py-8 rounded-xl border-2 border-dashed border-border hover:border-violet-400 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 transition-all cursor-pointer">
-              <Upload className="w-7 h-7 text-muted-foreground" />
-              <div className="text-center">
-                <p className="text-sm font-semibold text-foreground">Drop a financial document</p>
-                <p className="text-xs text-muted-foreground mt-1">Bank statement \u00b7 Pay stub \u00b7 Tax summary \u00b7 PDF or image</p>
-              </div>
-            </button>
-          ) : (
-            <div className="p-3 rounded-xl bg-muted/40 border border-border flex items-center gap-3">
-              <FileText className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{file.name}</p>
-                <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
-              </div>
-              <button onClick={reset} className="p-1 hover:bg-muted rounded"><X className="w-4 h-4 text-muted-foreground" /></button>
-            </div>
-          )}
-          <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+      <input ref={fileRef} type="file" accept="image/*,.pdf" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
 
-          {file && extracted.length === 0 && !applied && (
-            <button onClick={extractWithAI} disabled={extracting}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition disabled:opacity-60">
-              {extracting ? <><Loader2 className="w-4 h-4 animate-spin" /> Reading document...</> : <><Sparkles className="w-4 h-4" /> Extract with AI</>}
-            </button>
-          )}
+      {file && extracted.length === 0 && !applied && (
+        <button
+          onClick={extractWithAI}
+          disabled={extracting}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition disabled:opacity-60"
+        >
+          {extracting ? <><Loader2 className="w-4 h-4 animate-spin" /> Reading document...</> : <><Sparkles className="w-4 h-4" /> Extract with AI</>}
+        </button>
+      )}
 
-          {extracted.length > 0 && !applied && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-foreground mb-2">Found {extracted.length} field{extracted.length !== 1 ? "s" : ""}. Select which to apply:</p>
-              {extracted.map(f => (
-                <label key={f.key} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer">
-                  <input type="checkbox" checked={selected.has(f.key)} onChange={e => { const next = new Set(selected); if (e.target.checked) next.add(f.key); else next.delete(f.key); setSelected(next); }} className="w-4 h-4 accent-violet-600" />
-                  <div className="flex-1"><p className="text-sm font-medium text-foreground">{f.label}</p></div>
-                  <span className="text-sm font-bold text-foreground">{f.key === "credit_score" ? f.value : `$${parseFloat(f.value).toLocaleString()}`}</span>
-                </label>
-              ))}
-              <button onClick={applyToFields} disabled={applying || selected.size === 0}
-                className="w-full py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition disabled:opacity-60 mt-2">
-                {applying ? "Applying..." : `Apply ${selected.size} field${selected.size !== 1 ? "s" : ""} to Money`}
-              </button>
-            </div>
-          )}
+      {extracted.length > 0 && !applied && (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-foreground">Found {extracted.length} field{extracted.length !== 1 ? "s" : ""}. Select which to apply:</p>
+          {extracted.map(f => (
+            <label key={f.key} className="flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-muted/30 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selected.has(f.key)}
+                onChange={e => { const next = new Set(selected); if (e.target.checked) next.add(f.key); else next.delete(f.key); setSelected(next); }}
+                className="w-4 h-4 accent-violet-600"
+              />
+              <div className="flex-1"><p className="text-sm font-medium text-foreground">{f.label}</p></div>
+              <span className="text-sm font-bold text-foreground">
+                {f.key === "credit_score" ? f.value : `$${parseFloat(f.value).toLocaleString()}`}
+              </span>
+            </label>
+          ))}
+          <button
+            onClick={applyToFields}
+            disabled={applying || selected.size === 0}
+            className="w-full py-3 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition disabled:opacity-60 mt-2"
+          >
+            {applying ? "Applying..." : `Apply ${selected.size} field${selected.size !== 1 ? "s" : ""} to Money`}
+          </button>
+        </div>
+      )}
 
-          {applied && (
-            <div className="flex flex-col items-center gap-2 py-4">
-              <CheckCircle className="w-8 h-8 text-emerald-500" />
-              <p className="text-sm font-semibold text-foreground">Applied to your Money tab!</p>
-              <button onClick={reset} className="text-xs text-muted-foreground hover:text-foreground">Upload another document</button>
-            </div>
-          )}
+      {applied && (
+        <div className="flex flex-col items-center gap-2 py-6">
+          <CheckCircle className="w-10 h-10 text-emerald-500" />
+          <p className="text-sm font-semibold text-foreground">Applied to your Money tab!</p>
+          <p className="text-xs text-muted-foreground">Your financial fields have been updated.</p>
+          <button onClick={reset} className="text-xs text-muted-foreground hover:text-foreground mt-1">Upload another document</button>
         </div>
       )}
     </div>
