@@ -27,7 +27,12 @@ export function loadStoredJson<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw) as T;
+    // If parsed result is an empty array and fallback is non-empty array, use fallback
+    if (Array.isArray(parsed) && parsed.length === 0 && Array.isArray(fallback) && (fallback as unknown[]).length > 0) {
+      return fallback;
+    }
+    return parsed;
   } catch {
     return fallback;
   }
