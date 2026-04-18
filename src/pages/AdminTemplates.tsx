@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ArrowLeft, Lock } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 
@@ -77,8 +76,12 @@ export default function AdminTemplates() {
           <div style={{ background: "white", border: "1px solid #E5E7EB", borderRadius: 12, padding: 20, marginBottom: 20 }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, color: "#111827", marginBottom: 16 }}>New Template</h3>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <div><label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Title *</label><input value={newTemplate.title} onChange={e => setNewTemplate(p => ({ ...p, title: e.target.value }))} placeholder="Resume Template" style={inputStyle} /></div>
-              <div><label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Type</label>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Title *</label>
+                <input value={newTemplate.title} onChange={e => setNewTemplate(p => ({ ...p, title: e.target.value }))} placeholder="Resume Template" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Type</label>
                 <select value={newTemplate.template_type} onChange={e => setNewTemplate(p => ({ ...p, template_type: e.target.value }))} style={inputStyle}>
                   <option value="career">Career</option>
                   <option value="finance">Finance</option>
@@ -87,11 +90,26 @@ export default function AdminTemplates() {
                   <option value="other">Other</option>
                 </select>
               </div>
-              <div><label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Price ($)</label><input type="number" value={newTemplate.price} onChange={e => setNewTemplate(p => ({ ...p, price: e.target.value }))} placeholder="0" style={inputStyle} /></div>
-              <div><label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Tags (comma-separated)</label><input value={newTemplate.tags} onChange={e => setNewTemplate(p => ({ ...p, tags: e.target.value }))} placeholder="resume, career, tech" style={inputStyle} /></div>
-              <div style={{ gridColumn: "1 / -1" }}><label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Description</label><textarea value={newTemplate.description} onChange={e => setNewTemplate(p => ({ ...p, description: e.target.value }))} placeholder="What's included..." rows={2} style={{ ...inputStyle, resize: "none" as const }} /></div>
-              <div><label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>File URL</label><input value={newTemplate.file_url} onChange={e => setNewTemplate(p => ({ ...p, file_url: e.target.value }))} placeholder="https://..." style={inputStyle} /></div>
-              <div><label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Preview URL</label><input value={newTemplate.preview_url} onChange={e => setNewTemplate(p => ({ ...p, preview_url: e.target.value }))} placeholder="https://..." style={inputStyle} /></div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Price ($)</label>
+                <input type="number" value={newTemplate.price} onChange={e => setNewTemplate(p => ({ ...p, price: e.target.value }))} placeholder="0" style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Tags (comma-separated)</label>
+                <input value={newTemplate.tags} onChange={e => setNewTemplate(p => ({ ...p, tags: e.target.value }))} placeholder="resume, career, tech" style={inputStyle} />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Description</label>
+                <textarea value={newTemplate.description} onChange={e => setNewTemplate(p => ({ ...p, description: e.target.value }))} placeholder="What's included..." rows={2} style={{ ...inputStyle, resize: "none" as const }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>File URL</label>
+                <input value={newTemplate.file_url} onChange={e => setNewTemplate(p => ({ ...p, file_url: e.target.value }))} placeholder="https://..." style={inputStyle} />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", display: "block", marginBottom: 4 }}>Preview URL</label>
+                <input value={newTemplate.preview_url} onChange={e => setNewTemplate(p => ({ ...p, preview_url: e.target.value }))} placeholder="https://..." style={inputStyle} />
+              </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setShowAdd(false)} style={{ padding: "9px 20px", border: "1px solid #E5E7EB", borderRadius: 8, background: "white", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Cancel</button>
@@ -110,7 +128,9 @@ export default function AdminTemplates() {
                   <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: t.is_active ? "#F0FDF4" : "#F3F4F6", color: t.is_active ? "#065F46" : "#6B7280" }}>{t.is_active ? "Live" : "Draft"}</span>
                   {t.price > 0 && <span style={{ fontSize: 11, fontWeight: 600, color: "#6366f1" }}>${t.price}</span>}
                 </div>
-                <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>{t.template_type}{t.description ? " · " + t.description.substring(0, 60) : ""}</p>
+                <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>
+                  {t.template_type}{t.description ? ` \u00b7 ${t.description.substring(0, 60)}` : ""}
+                </p>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={async () => { await (supabase as any).from("shop_templates").update({ is_active: !t.is_active }).eq("id", t.id); setTemplates(p => p.map(x => x.id === t.id ? { ...x, is_active: !x.is_active } : x)); toast.success(t.is_active ? "Set to Draft" : "Published"); }} style={{ padding: "5px 10px", border: "1px solid #E5E7EB", borderRadius: 6, background: "white", fontSize: 11, fontWeight: 600, cursor: "pointer", color: "#374151" }}>{t.is_active ? "Unpublish" : "Publish"}</button>
