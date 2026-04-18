@@ -1,37 +1,51 @@
-/* Money tab root — proper spacing from AppShell notif bell */
+/* ──────────────────────────────────────────────
+   Money Tab — layout
+   AppShell gives finance pages h-full with 0 padding.
+   We own ALL spacing here.
+────────────────────────────────────────────── */
+
 .money-tab-root {
-  padding: 24px 72px 40px 32px; /* right: 72px clears the fixed 38px bell + 24px gap */
-  min-height: 100%;
-  max-width: 1300px;
+  /* top: clear AppShell bell (38px) + gap (16px) = 54px
+     right: clear AppShell bell (38px) + width (38px) + gap (12px) = 88px
+     left: comfortable content padding */
+  padding: 20px 100px 60px 32px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
 }
 
 .money-tab-stack {
+  max-width: 1200px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   gap: 0;
-  width: 100%;
 }
 
+/* Card rows ─────────────────────────────────── */
 .money-tab-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 20px;
+  margin-bottom: 20px;
 }
-
 .money-tab-row.full-width {
   grid-template-columns: 1fr;
 }
+.money-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  overflow: hidden;
+}
 
-/* Mobile */
+/* Mobile ────────────────────────────────────── */
 @media (max-width: 1023px) {
   .money-tab-root {
-    padding: 16px 16px 100px 16px; /* bottom: 100px for mobile tab bar */
+    /* Mobile header is 48px, bottom tab bar 72px */
+    padding: 16px 16px 100px 16px !important;
   }
-
   .money-tab-row {
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-bottom: 12px;
+    grid-template-columns: 1fr !important;
   }
 }

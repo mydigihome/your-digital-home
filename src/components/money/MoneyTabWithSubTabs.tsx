@@ -40,9 +40,9 @@ import PremiumGate, { usePremiumStatus } from "@/components/PremiumGate";
 import "../../styles/money-tab.css";
 
 const TABS = [
-  { id: "overview", label: "Overview", icon: BarChart3 },
-  { id: "debt", label: "Debt", icon: TrendingDown },
-  { id: "investing", label: "Investing", icon: TrendingUp },
+  { id: "overview", label: "Overview" },
+  { id: "debt", label: "Debt" },
+  { id: "investing", label: "Investing" },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -95,7 +95,6 @@ export default function MoneyTabWithSubTabs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [trackFinanceOpen, setTrackFinanceOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  // Modals for tool buttons — open immediately when clicked
   const [docModalOpen, setDocModalOpen] = useState(false);
   const [taxModalOpen, setTaxModalOpen] = useState(false);
 
@@ -162,118 +161,96 @@ export default function MoneyTabWithSubTabs() {
     <div className="money-tab-root">
       <div className="money-tab-stack">
 
-        {/* ── HEADER ─────────────────────────────────── */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-            <div>
-              <h1 className="text-[28px] font-bold text-foreground tracking-tight">Money</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Your complete financial picture</p>
-            </div>
-            {/* Connect Bank — top right */}
-            <PlaidConnectButton />
+        {/* ── ROW 1: Title + Connect Bank (right-aligned, clears bell) ── */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16, paddingRight: 54 }}>
+          {/* 54px right clears the fixed notification bell (38px width + 16px gap) */}
+          <div>
+            <h1 className="text-[26px] font-bold text-foreground tracking-tight leading-tight">Money</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Your complete financial picture</p>
           </div>
+          <PlaidConnectButton />
         </div>
 
-        {/* ── TAB ROW + TOOL ICONS ───────────────────── */}
-        {/* Tool icons sit to the RIGHT of the tab pills, all in one flex row */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
+        {/* ── ROW 2: Tab pills + tool icons together ─────────────────── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
           {/* Tab pills */}
-          <div style={{ display: "flex", alignItems: "center", borderBottom: "1px solid hsl(var(--border))", gap: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", borderBottom: "2px solid hsl(var(--border))", gap: 0, flexShrink: 0 }}>
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 style={{
-                  padding: "10px 16px",
+                  padding: "9px 18px",
                   fontSize: 14,
                   fontWeight: activeTab === tab.id ? 600 : 400,
                   color: activeTab === tab.id ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))",
                   background: "transparent",
                   border: "none",
                   borderBottom: `2px solid ${activeTab === tab.id ? "hsl(var(--success))" : "transparent"}`,
-                  marginBottom: -1,
+                  marginBottom: -2,
                   cursor: "pointer",
                   whiteSpace: "nowrap" as const,
                   transition: "all 150ms",
+                  fontFamily: "Inter, sans-serif",
                 }}
               >{tab.label}</button>
             ))}
           </div>
 
-          {/* Tool icon circles — adjacent right of tabs */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {/* AI Import icon */}
+          {/* Separator */}
+          <div style={{ width: 1, height: 28, background: "hsl(var(--border))", flexShrink: 0 }} />
+
+          {/* ── Tool circles: Import (purple) + Receipts (orange) ─── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button
               onClick={() => setDocModalOpen(true)}
               title="AI Document Import"
-              style={{
-                display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
-                background: "transparent", border: "none", cursor: "pointer", padding: 0,
-              }}
+              style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}
             >
-              <div style={{
-                width: 38, height: 38, borderRadius: "50%",
-                background: "#7C3AED",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 2px 8px rgba(124,58,237,0.35)",
-                transition: "transform 150ms",
-              }}
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#7C3AED", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(124,58,237,0.4)" }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "scale(1.1)"}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = "scale(1)"}
+                style={{ width: 34, height: 34, borderRadius: "50%", background: "#7C3AED", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(124,58,237,0.4)", transition: "transform 150ms" }}
               >
-                <Sparkles style={{ width: 17, height: 17, color: "white" }} />
+                <Sparkles style={{ width: 15, height: 15, color: "white" }} />
               </div>
-              <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>Import</span>
+              <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))", fontWeight: 500, fontFamily: "Inter,sans-serif" }}>Import</span>
             </button>
 
-            {/* Tax Receipts icon — brighter orange */}
             <button
               onClick={() => setTaxModalOpen(true)}
               title="Tax Receipt Tracker"
-              style={{
-                display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
-                background: "transparent", border: "none", cursor: "pointer", padding: 0,
-              }}
+              style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 2, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}
             >
-              <div style={{
-                width: 38, height: 38, borderRadius: "50%",
-                background: "#F97316",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 2px 8px rgba(249,115,22,0.35)",
-                transition: "transform 150ms",
-              }}
+              <div
+                style={{ width: 34, height: 34, borderRadius: "50%", background: "#F97316", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(249,115,22,0.4)", transition: "transform 150ms" }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "scale(1.1)"}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = "scale(1)"}
               >
-                <FileSpreadsheet style={{ width: 17, height: 17, color: "white" }} />
+                <FileSpreadsheet style={{ width: 15, height: 15, color: "white" }} />
               </div>
-              <span style={{ fontSize: 10, color: "hsl(var(--muted-foreground))", fontWeight: 500 }}>Receipts</span>
+              <span style={{ fontSize: 9, color: "hsl(var(--muted-foreground))", fontWeight: 500, fontFamily: "Inter,sans-serif" }}>Receipts</span>
             </button>
-
-            {/* Add Card — only non-overview tabs */}
-            {activeTab !== "overview" && (
-              <button
-                onClick={() => setTrackFinanceOpen(true)}
-                className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 py-2 text-sm font-semibold transition-all"
-              >
-                <Plus className="w-4 h-4" /> Add Card
-              </button>
-            )}
-
-            {activeTab !== "overview" && (
-              <div className="flex-1 flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2" style={{ minWidth: 180 }}>
-                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search cards..."
-                  className="bg-transparent border-none outline-none text-sm text-foreground w-full placeholder:text-muted-foreground" />
-                {searchQuery && <button onClick={() => setSearchQuery("")}><X className="w-4 h-4 text-muted-foreground" /></button>}
-              </div>
-            )}
           </div>
+
+          {/* Add Card / Search (non-overview tabs only) */}
+          {activeTab !== "overview" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+              <button onClick={() => setTrackFinanceOpen(true)}
+                className="flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl px-4 py-2 text-sm font-semibold transition-all">
+                <Plus className="w-3.5 h-3.5" /> Add Card
+              </button>
+              <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2" style={{ minWidth: 160 }}>
+                <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search cards..."
+                  className="bg-transparent border-none outline-none text-sm text-foreground w-full placeholder:text-muted-foreground" style={{ minWidth: 0 }} />
+                {searchQuery && <button onClick={() => setSearchQuery("")}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* ── PLAID STATUS: only shown when connected/disconnected, not as a banner blocker */}
-
-        {/* ── TAB CONTENT ───────────────────────────── */}
+        {/* ── TAB CONTENT ─────────────────────────────────────────────── */}
         {activeTab === "overview" ? (
           <MoneyOverview />
         ) : activeTab === "debt" ? (
@@ -283,7 +260,7 @@ export default function MoneyTabWithSubTabs() {
         ) : (
           <>
             {tabHiddenCards.length > 0 && (
-              <div className="money-card" style={{ padding: 0 }}>
+              <div className="money-card" style={{ padding: 0, marginBottom: 16 }}>
                 <button onClick={() => setDrawerOpen(!drawerOpen)} className="w-full flex items-center justify-between" style={{ padding: "10px 20px", background: "none", border: "none", cursor: "pointer" }}>
                   <div className="flex items-center gap-2"><EyeOff className="w-4 h-4 text-muted-foreground" /><span className="text-sm font-semibold text-foreground">{tabHiddenCards.length} hidden card{tabHiddenCards.length > 1 ? "s" : ""}</span></div>
                   <span className="text-sm font-semibold flex items-center gap-1 text-primary">Manage <ChevronDown className={`w-3.5 h-3.5 transition-transform ${drawerOpen ? "rotate-180" : ""}`} /></span>
@@ -327,58 +304,34 @@ export default function MoneyTabWithSubTabs() {
 
       <TrackFinanceModal open={trackFinanceOpen} onClose={() => setTrackFinanceOpen(false)} existingCardIds={cardOrder} onAddCards={handleAddCards} plaidConnected={plaid.isConnected} />
 
-      {/* ── AI DOC IMPORT MODAL ─────────────────────── */}
+      {/* AI DOC IMPORT MODAL */}
       {docModalOpen && (
-        <div
-          className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setDocModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-violet-600" />
-                </div>
+        <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setDocModalOpen(false)}>
+          <div className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center"><Sparkles className="w-4 h-4 text-violet-600" /></div>
                 <h3 className="text-base font-semibold text-foreground">AI Document Import</h3>
               </div>
-              <button onClick={() => setDocModalOpen(false)} className="p-1 hover:bg-muted rounded-full">
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
+              <button onClick={() => setDocModalOpen(false)} className="p-1 hover:bg-muted rounded-full"><X className="w-4 h-4 text-muted-foreground" /></button>
             </div>
-            <div className="p-4">
-              <FinancialDocUpload inModal />
-            </div>
+            <div className="p-5"><FinancialDocUpload inModal /></div>
           </div>
         </div>
       )}
 
-      {/* ── TAX RECEIPT MODAL ──────────────────────── */}
+      {/* TAX RECEIPT MODAL */}
       {taxModalOpen && (
-        <div
-          className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-start justify-center overflow-y-auto py-8 px-4"
-          onClick={() => setTaxModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
-                  <FileSpreadsheet className="w-4 h-4 text-orange-500" />
-                </div>
+        <div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-start justify-center overflow-y-auto py-6 px-4" onClick={() => setTaxModalOpen(false)}>
+          <div className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-2xl my-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center"><FileSpreadsheet className="w-4 h-4 text-orange-500" /></div>
                 <h3 className="text-base font-semibold text-foreground">Tax Receipt Tracker</h3>
               </div>
-              <button onClick={() => setTaxModalOpen(false)} className="p-1 hover:bg-muted rounded-full">
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
+              <button onClick={() => setTaxModalOpen(false)} className="p-1 hover:bg-muted rounded-full"><X className="w-4 h-4 text-muted-foreground" /></button>
             </div>
-            <div className="p-4">
-              <TaxReceiptTracker inModal />
-            </div>
+            <div className="p-5"><TaxReceiptTracker inModal /></div>
           </div>
         </div>
       )}

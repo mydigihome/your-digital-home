@@ -210,7 +210,7 @@ function ContentWrapper({ children }: { children: React.ReactNode }) {
   const isFullBleed = location.pathname === "/studio";
   const isDashboard = location.pathname.startsWith("/dashboard");
   const isFinance = location.pathname.startsWith("/finance");
-  // Finance pages get h-full so MoneyTabWithSubTabs controls its own padding
+  // Finance pages: h-full, money-tab.css owns all padding
   if (isFullBleed || isDashboard || isFinance) return <div className="h-full">{children}</div>;
   return <div className="mobile-main-content mx-auto max-w-[1400px] px-4 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-12">{children}</div>;
 }
@@ -269,21 +269,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <FloatingCloud onClick={() => navigate("/journal/new")} />
 
-        {/* Desktop notification bell — inset within content area, not overlapping */}
+        {/* Desktop notification bell — fixed top-right, ABOVE content, z-index above money circles */}
         {user && (
-          <div className="hidden lg:block fixed top-4 z-40" style={{ right: "24px" }}>
-            <div style={{ position: "relative" }}>
-              <button className="notif-bell" onClick={() => setNotifOpen(!notifOpen)} style={{ position: "relative", width: "38px", height: "38px", borderRadius: "50%", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#E5E7EB"}`, background: isDark ? "#252528" : "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 150ms" }}>
-                <Bell size={18} color={isDark ? "rgba(255,255,255,0.7)" : "#374151"} />
-                {unreadCount > 0 && <div style={{ position: "absolute", top: "-2px", right: "-2px", width: unreadCount > 9 ? "20px" : "16px", height: "16px", borderRadius: "999px", background: "#EF4444", border: `2px solid ${isDark ? "#252528" : "white"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: "700", color: "white", fontFamily: "Inter, sans-serif" }}>{unreadCount > 99 ? "99+" : unreadCount}</div>}
-              </button>
-            </div>
+          <div className="hidden lg:block fixed z-50" style={{ top: "16px", right: "24px" }}>
+            <button className="notif-bell" onClick={() => setNotifOpen(!notifOpen)} style={{ width: "38px", height: "38px", borderRadius: "50%", border: `1px solid ${isDark ? "rgba(255,255,255,0.1)" : "#E5E7EB"}`, background: isDark ? "#252528" : "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 150ms", position: "relative" }}>
+              <Bell size={18} color={isDark ? "rgba(255,255,255,0.7)" : "#374151"} />
+              {unreadCount > 0 && <div style={{ position: "absolute", top: "-2px", right: "-2px", width: unreadCount > 9 ? "20px" : "16px", height: "16px", borderRadius: "999px", background: "#EF4444", border: `2px solid ${isDark ? "#252528" : "white"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: "700", color: "white", fontFamily: "Inter, sans-serif" }}>{unreadCount > 99 ? "99+" : unreadCount}</div>}
+            </button>
           </div>
         )}
 
         {notifOpen && user && <NotificationPanel onClose={() => setNotifOpen(false)} onUnreadCountChange={setUnreadCount} userId={user.id} />}
 
-        <main className="transition-all duration-300 min-h-screen bg-background" style={{ paddingLeft: `${sidebarWidth}px` }}>
+        <main
+          className="transition-all duration-300 min-h-screen bg-background"
+          style={{ paddingLeft: `${sidebarWidth}px` }}
+        >
           <ContentWrapper>{children}</ContentWrapper>
         </main>
 
@@ -293,9 +294,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           @media (max-width: 1023px) {
             main { padding-left: 0 !important; padding-bottom: 72px !important; }
           }
-          /* Money tab mobile — full width, no extra padding */
           @media (max-width: 1023px) {
-            .money-tab-root { padding: 12px 16px 100px 16px !important; }
+            .money-tab-root { padding: 16px 16px 100px 16px !important; }
           }
         `}</style>
       </div>
