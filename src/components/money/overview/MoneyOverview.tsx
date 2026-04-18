@@ -3,9 +3,10 @@ import TotalSpendingsCard from "./TotalSpendingsCard";
 import TotalEarningsCard from "./TotalEarningsCard";
 import BillsRecurringCard from "./BillsRecurringCard";
 import CreditScoreGaugeCard from "./CreditScoreGaugeCard";
+import FinancialDocUpload from "../FinancialDocUpload";
+import TaxReceiptTracker from "../TaxReceiptTracker";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-// PlaidConnect removed from here — it now lives only in MoneyPage header (single connect point)
 export default function MoneyOverview() {
   const isMobile = useIsMobile();
 
@@ -39,6 +40,12 @@ export default function MoneyOverview() {
         <BillsRecurringCard />
         <CreditScoreGaugeCard />
       </div>
+
+      {/* AI Document Upload — auto-populates money fields */}
+      <FinancialDocUpload />
+
+      {/* Tax Receipt Tracker */}
+      <TaxReceiptTracker />
     </div>
   );
 }
