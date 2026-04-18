@@ -222,16 +222,18 @@ export default function Dashboard() {
   const exitFullscreen = () => { setIsMarketFullscreen(false); document.body.style.overflow = ""; };
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // Drag-and-drop card order — left column
-  const [leftOrder, setLeftOrder] = useState<string[]>(() =>
-    loadStoredJson<string[]>("dh_left_column_order", DEFAULT_LEFT_ORDER)
-  );
-  // Drag-and-drop card order — right column
-  const [rightOrder, setRightOrder] = useState<string[]>(() =>
-    loadStoredJson<string[]>("dh_right_column_order", DEFAULT_RIGHT_ORDER)
-  );
+  // FIX: Always use DEFAULT arrays — never use empty arrays from localStorage/DB
+  const [leftOrder, setLeftOrder] = useState<string[]>(() => {
+    const stored = loadStoredJson<string[]>("dh_left_column_order", DEFAULT_LEFT_ORDER);
+    // If stored is empty, always use defaults
+    return stored.length > 0 ? stored : DEFAULT_LEFT_ORDER;
+  });
+  const [rightOrder, setRightOrder] = useState<string[]>(() => {
+    const stored = loadStoredJson<string[]>("dh_right_column_order", DEFAULT_RIGHT_ORDER);
+    return stored.length > 0 ? stored : DEFAULT_RIGHT_ORDER;
+  });
 
-  // Load widget order from Supabase on mount (overrides localStorage)
+  // Load widget order from Supabase on mount — but ONLY if non-empty
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -240,16 +242,23 @@ export default function Dashboard() {
         .select("widget_order_left, widget_order_right")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (data?.widget_order_left && Array.isArray(data.widget_order_left)) {
+      // FIX: Only use DB values if they're non-empty arrays with actual items
+      if (data?.widget_order_left && Array.isArray(data.widget_order_left) && data.widget_order_left.length > 0) {
         setLeftOrder(data.widget_order_left);
         saveStoredJson("dh_left_column_order", data.widget_order_left);
+      } else {
+        // DB has empty array — set defaults and save them
+        saveStoredJson("dh_left_column_order", DEFAULT_LEFT_ORDER);
       }
-      if (data?.widget_order_right && Array.isArray(data.widget_order_right)) {
+      if (data?.widget_order_right && Array.isArray(data.widget_order_right) && data.widget_order_right.length > 0) {
         setRightOrder(data.widget_order_right);
         saveStoredJson("dh_right_column_order", data.widget_order_right);
+      } else {
+        saveStoredJson("dh_right_column_order", DEFAULT_RIGHT_ORDER);
       }
     })();
   }, [user]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -322,8 +331,11 @@ export default function Dashboard() {
     }
   }, [prefs]);
 
-  // Computed data
-  const userName = profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "User";
+  // FIX: Greeting uses profile.full_name (synced from DB) — falls back to auth metadata then email
+  const userName = profile?.full_name?.split(" ")[0]
+    || user?.user_metadata?.full_name?.split(" ")[0]
+    || user?.email?.split("@")[0]
+    || "there";
   const greeting = `${getGreeting()}, ${userName}`;
   const currentDate = format(now, "EEEE, MMMM d");
   const totalTasks = tasks.length;
@@ -434,14 +446,6 @@ export default function Dashboard() {
     { key: "journal", label: "Journal", icon: BookOpen, onClick: () => navigate("/journal/new") },
   ];
 
-  /* ── Link handlers ── */
-  const linkIcons: Record<string, React.ReactNode> = {
-    mail: <MailIcon className="w-5 h-5 text-info" strokeWidth={1.5} />,
-    store: <ShoppingBag className="w-5 h-5 text-success" strokeWidth={1.5} />,
-    status: <FileText className="w-5 h-5 text-warning" strokeWidth={1.5} />,
-  };
-
-  /* ── Render each draggable card by ID ── */
   /* ── Compact Net Worth (inline) ── */
   const compactNetWorth = (() => {
     const savings = Number(finances?.current_savings || 0);
@@ -505,7 +509,6 @@ export default function Dashboard() {
   const renderLeftCard = (id: string) => {
     switch (id) {
       case "networth-projects": {
-        
         return (
            <SortableCard key={id} id={id}>
             <div className="flex flex-col md:flex-row items-stretch gap-4 w-full">
@@ -528,39 +531,24 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={enterFullscreen}
-                    title="Fullscreen"
-                    className="w-7 h-7 flex items-center justify-center rounded-md transition text-muted-foreground hover:bg-success/10 hover:text-success"
-                  >
+                  <button onClick={enterFullscreen} title="Fullscreen" className="w-7 h-7 flex items-center justify-center rounded-md transition text-muted-foreground hover:bg-success/10 hover:text-success">
                     <Maximize2 className="w-3.5 h-3.5" />
                   </button>
-                  <button onClick={() => setShowBrokerModal(true)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-primary text-primary-foreground hover:bg-primary/90">
-                    Trade
-                  </button>
+                  <button onClick={() => setShowBrokerModal(true)} className="px-3 py-1.5 rounded-lg text-xs font-semibold transition bg-primary text-primary-foreground hover:bg-primary/90">Trade</button>
                 </div>
               </div>
-              <div style={{ height: 500 }}>
-                <TradingViewWidget />
-              </div>
+              <div style={{ height: 500 }}><TradingViewWidget /></div>
             </div>
             {isMarketFullscreen && createPortal(
               <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 9999, display: 'flex', flexDirection: 'column' }} className="bg-background">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border flex-shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-base text-foreground">Market Watch</span>
-                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-success">
-                      <span className="w-1.5 h-1.5 rounded-full bg-success inline-block" /> Live
-                    </span>
+                    <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-success"><span className="w-1.5 h-1.5 rounded-full bg-success inline-block" /> Live</span>
                   </div>
-                  <button onClick={exitFullscreen} className="w-8 h-8 flex items-center justify-center rounded-full bg-black/20 text-white hover:bg-black/40 transition">
-                    <X className="w-5 h-5" />
-                  </button>
+                  <button onClick={exitFullscreen} className="w-8 h-8 flex items-center justify-center rounded-full bg-black/20 text-white hover:bg-black/40 transition"><X className="w-5 h-5" /></button>
                 </div>
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <TradingViewWidget />
-                </div>
+                <div style={{ flex: 1, overflow: 'hidden' }}><TradingViewWidget /></div>
               </div>,
               document.body
             )}
@@ -582,8 +570,7 @@ export default function Dashboard() {
                   <p className="text-xs font-medium mt-0.5 text-primary">{momentum}% Complete</p>
                 </div>
               </div>
-              <button onClick={() => habits.length > 0 && setSelectedHabit(habits[0])}
-                className="flex-1 p-5 flex items-center gap-4 cursor-pointer hover:opacity-90 transition bg-card border border-border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+              <button onClick={() => habits.length > 0 && setSelectedHabit(habits[0])} className="flex-1 p-5 flex items-center gap-4 cursor-pointer hover:opacity-90 transition bg-card border border-border rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
                 <ProgressRing progress={habitsProgress} size={68} strokeWidth={6} gradientId="h-grad" color1="#10B981" color2="#34D399">
                   <span className="text-sm font-bold text-foreground">{streakDays}</span>
                 </ProgressRing>
@@ -603,23 +590,19 @@ export default function Dashboard() {
           <SortableCard key={id} id={id}>
             <div className="flex items-center gap-3 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
               <span className="text-[10px] font-bold uppercase tracking-widest flex-shrink-0 text-primary">Links</span>
-              <button onClick={() => window.location.href = "mailto:"}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border hover:border-primary/30 hover:shadow-sm transition flex-shrink-0">
+              <button onClick={() => window.location.href = "mailto:"} className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border hover:border-primary/30 hover:shadow-sm transition flex-shrink-0">
                 <div className="w-6 h-6 rounded-full bg-info/10 flex items-center justify-center"><MailIcon className="w-3 h-3 text-info" /></div>
                 <span className="text-xs font-semibold text-foreground">Email</span>
               </button>
-              <button onClick={() => navigate("/finance/applications")}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border hover:border-primary/30 hover:shadow-sm transition flex-shrink-0">
+              <button onClick={() => navigate("/finance/applications")} className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border hover:border-primary/30 hover:shadow-sm transition flex-shrink-0">
                 <div className="w-6 h-6 rounded-full bg-success/10 flex items-center justify-center"><ShoppingBag className="w-3 h-3 text-success" /></div>
                 <span className="text-xs font-semibold text-foreground">Store</span>
               </button>
-              <button onClick={() => setStatusModalOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border hover:border-primary/30 hover:shadow-sm transition flex-shrink-0">
+              <button onClick={() => setStatusModalOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border hover:border-primary/30 hover:shadow-sm transition flex-shrink-0">
                 <div className="w-6 h-6 rounded-full bg-warning/10 flex items-center justify-center"><FileText className="w-3 h-3 text-warning" /></div>
                 <span className="text-xs font-semibold text-foreground">Status</span>
               </button>
-              <button onClick={() => setQuickAddOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-dashed border-border hover:border-primary transition flex-shrink-0">
+              <button onClick={() => setQuickAddOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-full border-2 border-dashed border-border hover:border-primary transition flex-shrink-0">
                 <Plus className="w-3.5 h-3.5 text-muted-foreground" />
                 <span className="text-xs font-semibold text-muted-foreground">New</span>
               </button>
@@ -642,7 +625,6 @@ export default function Dashboard() {
                 <button onClick={() => navigate("/journal/new")} className="text-sm font-medium text-success hover:underline">New Journal Entry</button>
               </div>
               <div className="px-5 pb-5 flex flex-col sm:flex-row gap-5">
-                {/* LEFT — Entry list */}
                 <div className="flex-1 sm:flex-[0_0_60%]">
                   {(journalEntries.length > 0 ? journalEntries : [
                     { id: "sample1", title: "The Clarity of Morning", created_at: new Date().toISOString(), mood_emoji: "", mood: "Calm" },
@@ -662,7 +644,6 @@ export default function Dashboard() {
                   })}
                   <button onClick={() => navigate("/journal")} className="text-xs font-medium text-success hover:underline mt-2 block">View all →</button>
                 </div>
-                {/* RIGHT — Emotion bars */}
                 <div className="sm:flex-[0_0_35%]">
                   {(journalEmotionStats.length > 0 ? journalEmotionStats : [
                     { label: "Calm", percentage: 40 }, { label: "Happy", percentage: 30 }, { label: "Focused", percentage: 20 }, { label: "Sad", percentage: 10 },
@@ -684,7 +665,6 @@ export default function Dashboard() {
     }
   };
 
-  /* ── Render right column card by ID ── */
   const renderRightCard = (id: string) => {
     switch (id) {
       case "scripture":
@@ -701,16 +681,14 @@ export default function Dashboard() {
       case "reminders":
         return (
           <SortableCard key={id} id={id}>
-            <button onClick={() => navigate("/finance/wealth")} className="w-full text-left p-5 rounded-xl bg-gradient-to-br from-slate-800 to-slate-700 dark:from-slate-700 dark:to-slate-600 hover:from-slate-700 hover:to-slate-600 transition-all cursor-pointer border-0">
+            <button onClick={() => navigate("/finance/wealth")} className="w-full text-left p-5 rounded-xl bg-gradient-to-br from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 transition-all cursor-pointer border-0">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-                  <Receipt className="w-4 h-4 text-white" />
-                </div>
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center"><Receipt className="w-4 h-4 text-white" /></div>
                 <h2 className="text-base font-semibold text-white">Bills & Recurring</h2>
                 <ExternalLink className="w-3.5 h-3.5 text-white/40 ml-auto" />
               </div>
               {moneyReminders.length > 0 ? (
-                <div className="space-y-0">
+                <div>
                   {moneyReminders.map((bill, idx) => {
                     const due = new Date(bill.dueDate);
                     const diffDays = Math.ceil((due.getTime() - Date.now()) / 86400000);
@@ -742,7 +720,7 @@ export default function Dashboard() {
                 <button onClick={() => navigate("/calendar")} className="text-sm font-medium text-success hover:underline">View All</button>
               </div>
               {agendaItems.length > 0 ? (
-                <div className="space-y-0">
+                <div>
                   {agendaItems.map((item, idx) => {
                     const colors = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--destructive))"];
                     return (
@@ -762,9 +740,7 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">No events today.</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     Connect Google or Apple Calendar in{" "}
-                    <button onClick={() => navigate("/settings?tab=connections")} className="text-primary font-medium hover:underline">
-                      Settings &rarr; Connections
-                    </button>{" "}
+                    <button onClick={() => navigate("/settings?tab=connections")} className="text-primary font-medium hover:underline">Settings → Connections</button>{" "}
                     to sync your schedule.
                   </p>
                 </div>
@@ -780,11 +756,10 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold text-foreground">Quick To-Dos</h2>
               </div>
-              <div className="space-y-0">
+              <div>
                 {todos.filter(t => !t.completed).slice(0, 3).map(todo => (
                   <div key={todo.id} className="flex items-center gap-3 py-2.5">
-                    <button onClick={() => updateTodo.mutate({ id: todo.id, completed: true })}
-                      className="w-5 h-5 rounded-full border-2 border-border flex-shrink-0 flex items-center justify-center transition hover:border-primary" />
+                    <button onClick={() => updateTodo.mutate({ id: todo.id, completed: true })} className="w-5 h-5 rounded-full border-2 border-border flex-shrink-0 flex items-center justify-center transition hover:border-primary" />
                     <span className="text-sm text-foreground">{todo.text}</span>
                   </div>
                 ))}
@@ -815,8 +790,7 @@ export default function Dashboard() {
               {contacts.length > 0 && contacts[0] && (
                 <p className="text-xs text-muted-foreground truncate">Last contacted: <span className="text-foreground font-medium">{contacts[0].name}</span></p>
               )}
-              <button onClick={() => navigate("/relationships")}
-                className="mt-2 text-xs font-medium text-success hover:underline">+ Add Contact</button>
+              <button onClick={() => navigate("/relationships")} className="mt-2 text-xs font-medium text-success hover:underline">+ Add Contact</button>
             </div>
           </SortableCard>
         );
@@ -830,10 +804,8 @@ export default function Dashboard() {
       <div className="min-h-screen bg-background">
         <MonthlyReviewBanner />
 
-        {/* ═══ TWO-COLUMN LAYOUT ═══ */}
         <div className="max-w-6xl mx-auto px-4 pb-28">
-
-          {/* ═══ HERO BANNER ═══ */}
+          {/* HERO BANNER */}
           <div
             className="relative w-full overflow-hidden rounded-2xl mb-6 group cursor-pointer"
             style={{ height: window.innerWidth < 768 ? 160 : 220 }}
@@ -844,9 +816,7 @@ export default function Dashboard() {
                 const file = e.target.files[0];
                 if (file) {
                   const reader = new FileReader();
-                  reader.onload = (ev: any) => {
-                    upsertPrefs.mutate({ dashboard_cover: ev.target.result, dashboard_cover_type: "image" });
-                  };
+                  reader.onload = (ev: any) => { upsertPrefs.mutate({ dashboard_cover: ev.target.result, dashboard_cover_type: "image" }); };
                   reader.readAsDataURL(file);
                 }
               };
@@ -855,14 +825,9 @@ export default function Dashboard() {
           >
             <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${heroBg})` }} />
             <div className="absolute inset-0" style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.55) 100%)" }} />
-
             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-              <div className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                <Edit2 className="w-4 h-4 text-white" />
-              </div>
+              <div className="w-8 h-8 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"><Edit2 className="w-4 h-4 text-white" /></div>
             </div>
-
-            {/* Monthly Review Button */}
             {(() => {
               const today = new Date();
               const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
@@ -876,21 +841,15 @@ export default function Dashboard() {
                 </button>
               );
             })()}
-
             <div className="absolute bottom-16 left-6 sm:left-8 z-10">
               <p className="text-[13px] font-medium" style={{ color: "rgba(255,255,255,0.75)" }}>{currentDate}</p>
-              <h1 className="text-[32px] leading-[1.15] mt-0.5 font-semibold text-white" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
-                {greeting}
-              </h1>
+              <h1 className="text-[32px] leading-[1.15] mt-0.5 font-semibold text-white" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>{greeting}</h1>
             </div>
-
-            {/* Quick-action circles at bottom of hero */}
             <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-3 sm:gap-5">
               {heroActions.map((action) => {
                 const Icon = action.icon;
                 return (
-                  <button key={action.key} onClick={(e) => { e.stopPropagation(); action.onClick(); }}
-                    className="flex flex-col items-center gap-1 group/action">
+                  <button key={action.key} onClick={(e) => { e.stopPropagation(); action.onClick(); }} className="flex flex-col items-center gap-1 group/action">
                     <div className="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full bg-white flex items-center justify-center transition-transform group-hover/action:scale-110 shadow-md">
                       <Icon className="w-4 h-4 sm:w-5 sm:h-5" style={{ color: "#059669" }} strokeWidth={1.8} />
                     </div>
@@ -901,7 +860,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ═══ MAIN TWO-COLUMN GRID ═══ */}
+          {/* TWO-COLUMN GRID */}
           <div className="flex flex-col lg:flex-row gap-6">
             {/* LEFT COLUMN */}
             <div className="flex-1 min-w-0 space-y-4">
@@ -911,15 +870,13 @@ export default function Dashboard() {
                 </SortableContext>
                 <DragOverlay>
                   {activeId && leftOrder.includes(activeId) ? (
-                    <div className="opacity-95 scale-[1.005]" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.12)" }}>
-                      {renderLeftCard(activeId)}
-                    </div>
+                    <div className="opacity-95 scale-[1.005]" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.12)" }}>{renderLeftCard(activeId)}</div>
                   ) : null}
                 </DragOverlay>
               </DndContext>
             </div>
 
-            {/* RIGHT COLUMN — fixed 320px */}
+            {/* RIGHT COLUMN */}
             <div className="w-full lg:w-[320px] lg:flex-shrink-0 space-y-4">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                 <SortableContext items={rightOrder} strategy={verticalListSortingStrategy}>
@@ -927,9 +884,7 @@ export default function Dashboard() {
                 </SortableContext>
                 <DragOverlay>
                   {activeId && rightOrder.includes(activeId) ? (
-                    <div className="opacity-95 scale-[1.005]" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.12)" }}>
-                      {renderRightCard(activeId)}
-                    </div>
+                    <div className="opacity-95 scale-[1.005]" style={{ boxShadow: "0 8px 30px rgba(0,0,0,0.12)" }}>{renderRightCard(activeId)}</div>
                   ) : null}
                 </DragOverlay>
               </DndContext>
@@ -938,16 +893,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ═══ MODALS ═══ */}
-      {/* JournalEntryModal removed — now uses /journal route */}
-      <QuickAddModal
-        open={quickAddOpen}
-        onClose={() => setQuickAddOpen(false)}
-        onNewGoal={() => setCreateGoalOpen(true)}
-        onNewTask={scrollToTodos}
-        onNewJournal={() => navigate("/journal/new")}
-        onNewContact={() => navigate("/relationships")}
-      />
+      <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} onNewGoal={() => setCreateGoalOpen(true)} onNewTask={scrollToTodos} onNewJournal={() => navigate("/journal/new")} onNewContact={() => navigate("/relationships")} />
       <StatusUpdateModal open={statusModalOpen} onClose={() => setStatusModalOpen(false)} />
 
       <AlertDialog open={!!deleteEntryId} onOpenChange={() => setDeleteEntryId(null)}>
@@ -958,16 +904,14 @@ export default function Dashboard() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
                 const id = deleteEntryId;
                 setDeleteEntryId(null);
                 await (supabase as any).from("journal_entries").delete().eq("id", id!);
                 queryClient.invalidateQueries({ queryKey: ["recent_journal"] });
-                toast("Entry deleted", { action: { label: "Undo", onClick: () => toast.info("Undo not available for this action") }, duration: 5000 });
-              }}
-            >Delete</AlertDialogAction>
+                toast("Entry deleted", { duration: 5000 });
+              }}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -985,20 +929,15 @@ export default function Dashboard() {
         />
       )}
 
-      {/* Tutorial */}
       <AnimatePresence>
         {showTutorial && !showVideoPlayer && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setShowTutorial(false)}
-            className="fixed inset-0 flex items-center justify-center z-[10001] bg-black/30 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()} className="w-[400px] max-w-[90vw] bg-card rounded-2xl p-8 shadow-2xl">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTutorial(false)} className="fixed inset-0 flex items-center justify-center z-[10001] bg-black/30 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} onClick={(e) => e.stopPropagation()} className="w-[400px] max-w-[90vw] bg-card rounded-2xl p-8 shadow-2xl">
               <p className="text-md font-semibold text-foreground mb-2">Hi, I'm glad you're here.</p>
               <p className="text-sm text-muted-foreground mb-6">Would you like a quick 60-second tour?</p>
               <div className="flex flex-col gap-2">
                 <Button onClick={() => setShowVideoPlayer(true)} className="w-full">Watch the guide</Button>
-                <button onClick={async () => { setShowTutorial(false); await upsertPrefs.mutateAsync({ welcome_video_watched: true } as any); }}
-                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2">Maybe later</button>
+                <button onClick={async () => { setShowTutorial(false); await upsertPrefs.mutateAsync({ welcome_video_watched: true } as any); }} className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2">Maybe later</button>
               </div>
             </motion.div>
           </motion.div>
@@ -1007,31 +946,24 @@ export default function Dashboard() {
 
       <AnimatePresence>
         {showVideoPlayer && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 flex items-center justify-center z-[10002] bg-black/40 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 flex items-center justify-center z-[10002] bg-black/40 backdrop-blur-sm">
             <div className="w-[640px] max-w-[95vw] bg-card rounded-2xl p-6 shadow-2xl">
               <div className="flex justify-end mb-4">
-                <button onClick={async () => { setShowVideoPlayer(false); setShowTutorial(false); await upsertPrefs.mutateAsync({ welcome_video_watched: true } as any); }}
-                  className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
+                <button onClick={async () => { setShowVideoPlayer(false); setShowTutorial(false); await upsertPrefs.mutateAsync({ welcome_video_watched: true } as any); }} className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center hover:bg-secondary/80 transition-colors">
                   <X size={18} className="text-muted-foreground" />
                 </button>
               </div>
               <div className="w-full rounded-xl overflow-hidden bg-muted" style={{ aspectRatio: "16/9" }}>
-                <iframe src={(prefs as any)?.welcome_video_url || "https://www.loom.com/embed/your-video-id"}
-                  frameBorder="0" allow="autoplay; fullscreen" allowFullScreen style={{ width: "100%", height: "100%" }} />
+                <iframe src={(prefs as any)?.welcome_video_url || "https://www.loom.com/embed/your-video-id"} frameBorder="0" allow="autoplay; fullscreen" allowFullScreen style={{ width: "100%", height: "100%" }} />
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Log Habit Hours Modal */}
       {selectedHabit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => { if (e.target === e.currentTarget) setSelectedHabit(null); }}>
-          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            className="bg-card rounded-xl p-6 max-w-md w-full shadow-2xl border border-border"
-            onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={(e) => { if (e.target === e.currentTarget) setSelectedHabit(null); }}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-card rounded-xl p-6 max-w-md w-full shadow-2xl border border-border" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-lg font-bold text-foreground">Log Habit Hours</h3>
               <button onClick={() => setSelectedHabit(null)} className="p-1 hover:bg-muted rounded-full transition"><X className="w-5 h-5 text-muted-foreground" /></button>
@@ -1043,25 +975,18 @@ export default function Dashboard() {
                   <span className="text-sm font-medium text-foreground">{h.name}</span>
                 </label>
               ))}
-              <button onClick={() => { const name = prompt("Enter habit name:"); if (name) createHabit.mutate(name); }}
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted w-full text-left">
+              <button onClick={() => { const name = prompt("Enter habit name:"); if (name) createHabit.mutate(name); }} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted w-full text-left">
                 <div className="w-4 h-4 rounded-full border-2 border-border" />
                 <span className="text-sm font-medium text-muted-foreground">+ Add Custom Habit</span>
               </button>
             </div>
             <div className="mb-6">
               <label className="block text-sm font-medium mb-2 text-foreground">Hours this week</label>
-              <input type="number" min="0" step="0.5" value={logHours} onChange={(e) => setLogHours(e.target.value)}
-                className="w-full px-4 py-3 border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary bg-background text-foreground" placeholder="0" />
+              <input type="number" min="0" step="0.5" value={logHours} onChange={(e) => setLogHours(e.target.value)} className="w-full px-4 py-3 border border-border rounded-lg outline-none focus:ring-2 focus:ring-primary bg-background text-foreground" placeholder="0" />
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setSelectedHabit(null); setLogHours(""); }} className="flex-1 px-4 py-3 font-semibold rounded-lg hover:bg-muted transition text-foreground">Cancel</button>
-              <button onClick={() => {
-                if (logHours && parseFloat(logHours) > 0) {
-                  logHabitHours.mutate({ habit_id: selectedHabit.id, hours: parseFloat(logHours), week_start_date: currentWeekStart });
-                  setSelectedHabit(null); setLogHours(""); toast.success("Hours logged!");
-                }
-              }} className="flex-1 px-4 py-3 font-semibold rounded-lg transition bg-primary text-primary-foreground hover:bg-primary/90">Save</button>
+              <button onClick={() => { if (logHours && parseFloat(logHours) > 0) { logHabitHours.mutate({ habit_id: selectedHabit.id, hours: parseFloat(logHours), week_start_date: currentWeekStart }); setSelectedHabit(null); setLogHours(""); toast.success("Hours logged!"); } }} className="flex-1 px-4 py-3 font-semibold rounded-lg transition bg-primary text-primary-foreground hover:bg-primary/90">Save</button>
             </div>
           </motion.div>
         </div>
