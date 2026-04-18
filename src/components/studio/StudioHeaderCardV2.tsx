@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
@@ -6,8 +6,7 @@ import { toast } from "sonner";
 import {
   Shield, Hash, FileText, Award,
   Plus, Target, X, Trash2, Pencil,
-  ChevronRight, Upload, MoreHorizontal,
-  ImagePlus,
+  ChevronRight, ImagePlus, MoreHorizontal, Loader2,
 } from "lucide-react";
 
 const DOC_ITEMS = [
@@ -17,8 +16,21 @@ const DOC_ITEMS = [
   { key: "business_license", label: "Business License", Icon: Award, color: "#3B82F6" },
 ];
 
-const GOAL_CATEGORIES = ["Followers","Revenue","Content","Brand Deal","Other"];
-const TABS = ["Overview","HQ","Platforms","Deals","Revenue"];
+const GOAL_CATEGORIES = ["Followers", "Revenue", "Content", "Brand Deal", "Other"];
+const TABS = ["Overview", "HQ", "Platforms", "Deals", "Revenue"];
+
+// Detect platform from URL
+function detectPlatform(url: string): string | null {
+  if (!url) return null;
+  const u = url.toLowerCase();
+  if (u.includes("instagram.com")) return "instagram";
+  if (u.includes("substack.com") || u.includes(".substack.com")) return "substack";
+  if (u.includes("youtube.com") || u.includes("youtu.be")) return "youtube";
+  if (u.includes("tiktok.com")) return "tiktok";
+  if (u.includes("twitter.com") || u.includes("x.com")) return "twitter";
+  if (u.includes("linkedin.com")) return "linkedin";
+  return null;
+}
 
 interface Props {
   activeTab: string;
@@ -51,6 +63,8 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
   const [goalProgress, setGoalProgress] = useState(0);
   const [goalDeadline, setGoalDeadline] = useState("");
   const [goalCategory, setGoalCategory] = useState("Other");
+  // Social URL fetching state
+  const [fetchingUrl, setFetchingUrl] = useState<string | null>(null);
   const imgRef = useRef<HTMLInputElement>(null);
 
   const border = isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB";
@@ -62,41 +76,34 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
 
   useEffect(() => {
     if (!user) return;
-    (async () => {
-      const { data: p } = await supabase
-        .from("studio_profile").select("*")
-        .eq("user_id", user.id).maybeSingle();
-      if (p) {
-        setStudioName((p as any).studio_name || "");
-        setStudioHandle((p as any).handle || "");
-        setStudioDocs({
-          llc_document: (p as any).llc_document,
-          ein_number: (p as any).ein_number,
-          pitch_deck: (p as any).pitch_deck,
-          business_license: (p as any).business_license,
-        });
-        setFormProfile(p);
-        if (Array.isArray((p as any).images)) setStudioImages((p as any).images);
-        const ig = Number((p as any).instagram_followers) || 0;
-        const yt = Number((p as any).youtube_subscribers) || 0;
-        const tt = Number((p as any).tiktok_followers) || 0;
-        const tw = Number((p as any).twitter_followers) || 0;
-        const sub = Number((p as any).substack_subscriber_count) || 0;
-        const manual = Number((p as any).combined_followers) || 0;
-        const calc = ig + yt + tt + tw + sub;
-        setStudioStats({
-          combined_followers: manual > 0 ? manual : (calc || undefined),
-          reach_30d: (p as any).reach_30d || undefined,
-          interactions_30d: (p as any).interactions_30d || undefined,
-          avg_engagement: (p as any).avg_engagement || undefined,
-        });
-      }
-      const { data: goals } = await supabase
-        .from("studio_goals").select("*")
-        .eq("user_id", user.id).order("created_at", { ascending: true });
-      if (goals) setStudioGoals(goals);
-    })();
+    loadProfile();
   }, [user]);
+
+  const loadProfile = async () => {
+    const { data: p } = await supabase.from("studio_profile").select("*").eq("user_id", user!.id).maybeSingle();
+    if (p) {
+      setStudioName((p as any).studio_name || "");
+      setStudioHandle((p as any).handle || "");
+      setStudioDocs({ llc_document: (p as any).llc_document, ein_number: (p as any).ein_number, pitch_deck: (p as any).pitch_deck, business_license: (p as any).business_license });
+      setFormProfile(p);
+      if (Array.isArray((p as any).images)) setStudioImages((p as any).images);
+      const ig = Number((p as any).instagram_followers) || 0;
+      const yt = Number((p as any).youtube_subscribers) || 0;
+      const tt = Number((p as any).tiktok_followers) || 0;
+      const tw = Number((p as any).twitter_followers) || 0;
+      const sub = Number((p as any).substack_subscriber_count) || 0;
+      const manual = Number((p as any).combined_followers) || 0;
+      const calc = ig + yt + tt + tw + sub;
+      setStudioStats({
+        combined_followers: manual > 0 ? manual : (calc || undefined),
+        reach_30d: (p as any).reach_30d || undefined,
+        interactions_30d: (p as any).interactions_30d || undefined,
+        avg_engagement: (p as any).avg_engagement || undefined,
+      });
+    }
+    const { data: goals } = await supabase.from("studio_goals").select("*").eq("user_id", user!.id).order("created_at", { ascending: true });
+    if (goals) setStudioGoals(goals);
+  };
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -112,8 +119,36 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
   }, [studioImages.length]);
 
   const upsertProfile = async (data: any) => {
-    return (supabase as any).from("studio_profile")
-      .upsert({ user_id: user!.id, ...data } as any, { onConflict: "user_id" });
+    return (supabase as any).from("studio_profile").upsert({ user_id: user!.id, ...data } as any, { onConflict: "user_id" });
+  };
+
+  // Auto-fetch social stats when a URL is pasted/blurred
+  const handleSocialUrlBlur = async (fieldKey: string, url: string) => {
+    if (!url || !user) return;
+    const platform = detectPlatform(url);
+    if (!platform) return;
+    setFetchingUrl(fieldKey);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-social-stats", {
+        body: { platform, url, user_id: user.id },
+      });
+      if (error) throw error;
+      if (data?.data) {
+        // Merge fetched data into formProfile for display
+        setFormProfile((prev: any) => ({ ...prev, ...data.data }));
+        // Show what was found
+        const msgs = [];
+        if (data.data.instagram_followers) msgs.push(`${data.data.instagram_followers.toLocaleString()} followers`);
+        if (data.data.substack_subscriber_count) msgs.push(`${data.data.substack_subscriber_count.toLocaleString()} subscribers`);
+        if (data.data.youtube_subscribers) msgs.push(`${data.data.youtube_subscribers.toLocaleString()} subscribers`);
+        if (msgs.length > 0) toast.success(`Auto-filled: ${msgs.join(", ")}`);
+        else toast.info(`Handle saved: @${data.handle}`);
+      }
+    } catch {
+      // Silent — user can still manually enter
+    } finally {
+      setFetchingUrl(null);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,8 +161,7 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
     for (const file of files) {
       const ext = file.name.split(".").pop() || "jpg";
       const path = `${user.id}/studio/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await (supabase as any).storage
-        .from("user-assets").upload(path, file, { upsert: true });
+      const { error } = await (supabase as any).storage.from("user-assets").upload(path, file, { upsert: true });
       if (error) { toast.error("Upload failed: " + error.message); continue; }
       const { data: u } = (supabase as any).storage.from("user-assets").getPublicUrl(path);
       if (u?.publicUrl) newUrls.push(u.publicUrl);
@@ -136,7 +170,7 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
     if (!newUrls.length) return;
     const updated = [...studioImages, ...newUrls];
     const { error: dbErr } = await upsertProfile({ images: updated });
-    if (dbErr) { toast.error("Photo not saved to DB: " + dbErr.message); return; }
+    if (dbErr) { toast.error("Photo not saved: " + dbErr.message); return; }
     setStudioImages(updated);
     setCurrentImageIndex(updated.length - 1);
     toast.success(newUrls.length + " photo" + (newUrls.length > 1 ? "s" : "") + " uploaded!");
@@ -149,7 +183,6 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
     if (error) { toast.error("Remove failed"); return; }
     setStudioImages(updated);
     setCurrentImageIndex(Math.max(0, Math.min(idx, updated.length - 1)));
-    toast.success("Photo removed");
   };
 
   const handleDocAction = async (doc: typeof DOC_ITEMS[number]) => {
@@ -202,7 +235,8 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
     const twHandle = (formProfile.twitter_url?.includes("twitter.com") || formProfile.twitter_url?.includes("x.com"))
       ? extractHandle(formProfile.twitter_url)
       : formProfile.twitter_handle || "";
-    const { error } = await upsertProfile({
+
+    const saveData: Record<string, any> = {
       studio_name: formProfile.studio_name || null,
       handle: formProfile.handle || null,
       description: formProfile.description || null,
@@ -210,6 +244,7 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
       instagram_followers: Number(formProfile.instagram_followers) || null,
       instagram_url: formProfile.instagram_url || null,
       youtube_url: formProfile.youtube_url || null,
+      youtube_handle: formProfile.youtube_handle || null,
       youtube_subscribers: Number(formProfile.youtube_subscribers) || null,
       tiktok_handle: ttHandle || null,
       tiktok_followers: Number(formProfile.tiktok_followers) || null,
@@ -222,15 +257,17 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
       substack_subscriber_count: Number(formProfile.substack_subscriber_count) || null,
       podcast_name: formProfile.podcast_name || null,
       podcast_url: formProfile.podcast_url || null,
-    });
+    };
+
+    const { error } = await upsertProfile(saveData);
     if (error) { toast.error("Save failed: " + error.message); return; }
     setStudioName(formProfile.studio_name || "");
     setStudioHandle(formProfile.handle || "");
     setSettingsOpen(false);
     toast.success("Saved!");
     queryClient.invalidateQueries({ queryKey: ["studio_profile_overview"] });
-    const calc = (Number(formProfile.instagram_followers) || 0) + (Number(formProfile.youtube_subscribers) || 0) + (Number(formProfile.tiktok_followers) || 0) + (Number(formProfile.twitter_followers) || 0) + (Number(formProfile.substack_subscriber_count) || 0);
-    if (calc > 0) setStudioStats((p: any) => ({ ...p, combined_followers: calc }));
+    // Reload profile to reflect any auto-fetched data
+    await loadProfile();
   };
 
   const handleAddGoal = async () => {
@@ -256,6 +293,24 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
     { label: "Avg Engagement", key: "avg_engagement", value: studioStats?.avg_engagement ? studioStats.avg_engagement + "%" : "—", raw: studioStats?.avg_engagement },
   ];
 
+  // Social URL input with auto-fetch
+  const socialInp = (fieldKey: string, placeholder: string, urlField: string) => (
+    <div style={{ position: "relative" }}>
+      <input
+        value={(formProfile as any)?.[urlField] || ""}
+        onChange={e => setFormProfile((p: any) => ({ ...p, [urlField]: e.target.value }))}
+        onBlur={e => handleSocialUrlBlur(fieldKey, e.target.value)}
+        placeholder={placeholder}
+        style={{ width: "100%", padding: "8px 36px 8px 12px", fontSize: 13, border: `1px solid ${inputBorder}`, borderRadius: "8px", outline: "none", background: inputBg, color: text1, boxSizing: "border-box" as const, minHeight: 38 }}
+      />
+      {fetchingUrl === fieldKey && (
+        <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)" }}>
+          <Loader2 size={14} color="#10B981" style={{ animation: "spin 1s linear infinite" }} />
+        </div>
+      )}
+    </div>
+  );
+
   const inp = (key: string, placeholder: string, type = "text", prefix?: string) => (
     <div style={{ display: "flex", alignItems: "stretch" }}>
       {prefix && <span style={{ display: "flex", alignItems: "center", padding: "0 10px", background: isDark ? "#333" : "#F3F4F6", borderRadius: "8px 0 0 8px", border: `1px solid ${inputBorder}`, borderRight: "none", fontSize: 13, color: text2 }}>{prefix}</span>}
@@ -279,22 +334,17 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
   return (
     <>
       <div style={{ background: bg, borderRadius: 14, border: `1px solid ${border}`, overflow: "hidden", fontFamily: "Inter, sans-serif" }}>
-
-        {/* TOP */}
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 380px" }}>
-
           {/* LEFT */}
           <div style={{ padding: isMobile ? "20px 16px" : "28px 32px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: "#10B981", textTransform: "uppercase" as const, letterSpacing: "0.5px" }}>Studio</span>
               {studioHandle && <span style={{ fontSize: 11, color: text2 }}>@{studioHandle.replace(/^@/, "")}</span>}
             </div>
-
             {studioName
               ? <h2 style={{ fontSize: isMobile ? 22 : 26, fontWeight: 700, color: text1, margin: "0 0 16px", lineHeight: 1.2 }}>{studioName}</h2>
               : <button onClick={() => setSettingsOpen(true)} style={{ fontSize: 22, fontWeight: 600, color: isDark ? "rgba(255,255,255,0.2)" : "#D1D5DB", background: "transparent", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", padding: 0, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}><Plus size={18} /> Add studio name</button>
             }
-
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 16px", marginBottom: 20 }}>
               {DOC_ITEMS.map(doc => {
                 const val = studioDocs[doc.key];
@@ -302,35 +352,23 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
                   <div key={doc.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <doc.Icon size={14} color={doc.color} />
                     <button onClick={() => handleDocAction(doc)} style={{ background: "transparent", border: "none", padding: 0, fontSize: 13, color: val ? (isDark ? "rgba(255,255,255,0.5)" : "#374151") : (isDark ? "rgba(255,255,255,0.2)" : "#D1D5DB"), cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
-                      {val ? (doc.isText ? val : `${doc.label} →`) : `+ Add ${doc.label}`}
+                      {val ? (doc.isText ? val : `${doc.label} \u2192`) : `+ Add ${doc.label}`}
                     </button>
                   </div>
                 );
               })}
             </div>
-
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-              {[
-                { label: "Edit Studio", dark: true, onClick: () => { setFormProfile((p: any) => ({ studio_name: studioName, handle: studioHandle, ...p })); setSettingsOpen(true); } },
-                { label: "Preview", onClick: () => { if (!studioName) { toast("Add your studio name first"); return; } setPreviewOpen(true); } },
-                { label: "Share", onClick: () => { const url = `${window.location.origin}/studio/${user?.id}`; if (navigator.share) navigator.share({ title: studioName, url }).catch(() => {}); else { navigator.clipboard.writeText(url); toast("Link copied!"); } } },
-              ].map(b => (
+              {[{ label: "Edit Studio", dark: true, onClick: () => { setFormProfile((p: any) => ({ studio_name: studioName, handle: studioHandle, ...p })); setSettingsOpen(true); } }, { label: "Preview", onClick: () => { if (!studioName) { toast("Add your studio name first"); return; } setPreviewOpen(true); } }, { label: "Share", onClick: () => { const url = `${window.location.origin}/studio/${user?.id}`; if (navigator.share) navigator.share({ title: studioName, url }).catch(() => {}); else { navigator.clipboard.writeText(url); toast("Link copied!"); } } }].map(b => (
                 <button key={b.label} onClick={b.onClick} style={{ padding: "8px 18px", borderRadius: 8, border: (b as any).dark ? "none" : `1px solid ${border}`, background: (b as any).dark ? "#111827" : "transparent", color: (b as any).dark ? "white" : text1, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "Inter, sans-serif", display: "flex", alignItems: "center", gap: 6, minHeight: 44 }}>
                   {(b as any).dark && <Pencil size={13} />}{b.label}
                 </button>
               ))}
               <div style={{ position: "relative" }} onClick={e => e.stopPropagation()}>
-                <button onClick={() => setMenuOpen(!menuOpen)} style={{ padding: 9, background: "transparent", border: `1px solid ${border}`, borderRadius: 8, cursor: "pointer", color: text2, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 44, minWidth: 44 }}>
-                  <MoreHorizontal size={18} />
-                </button>
+                <button onClick={() => setMenuOpen(!menuOpen)} style={{ padding: 9, background: "transparent", border: `1px solid ${border}`, borderRadius: 8, cursor: "pointer", color: text2, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 44, minWidth: 44 }}><MoreHorizontal size={18} /></button>
                 {menuOpen && (
                   <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: 4, minWidth: 180, zIndex: 100, boxShadow: "0 8px 24px rgba(0,0,0,0.15)" }}>
-                    {[
-                      { label: "Edit Studio", Icon: Pencil, action: () => { setSettingsOpen(true); setMenuOpen(false); } },
-                      { label: "Add Photos", Icon: ImagePlus, action: () => { imgRef.current?.click(); setMenuOpen(false); } },
-                      { label: "Add Goal", Icon: Target, action: () => { setAddGoalOpen(true); setMenuOpen(false); } },
-                      { label: "Remove All Photos", Icon: Trash2, color: "#DC2626", action: async () => { setStudioImages([]); await upsertProfile({ images: [] }); toast("Photos removed"); setMenuOpen(false); } },
-                    ].map(item => (
+                    {[{ label: "Edit Studio", Icon: Pencil, action: () => { setSettingsOpen(true); setMenuOpen(false); } }, { label: "Add Photos", Icon: ImagePlus, action: () => { imgRef.current?.click(); setMenuOpen(false); } }, { label: "Add Goal", Icon: Target, action: () => { setAddGoalOpen(true); setMenuOpen(false); } }, { label: "Remove All Photos", Icon: Trash2, color: "#DC2626", action: async () => { setStudioImages([]); await upsertProfile({ images: [] }); toast("Photos removed"); setMenuOpen(false); } }].map(item => (
                       <button key={item.label} onClick={item.action} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 14px", background: "transparent", border: "none", cursor: "pointer", fontSize: 13, color: item.color || text1, fontFamily: "Inter, sans-serif", borderRadius: 6 }}
                         onMouseEnter={e => { e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.06)" : "#F3F4F6"; }}
                         onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
@@ -416,35 +454,39 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
             <div>{label("Studio / Brand Name")}{inp("studio_name", "e.g. Chloe Creates")}</div>
             <div>{label("Handle")}{inp("handle", "yourhandle", "text", "@")}</div>
             <div>{label("Description")}<textarea value={(formProfile as any)?.description || ""} onChange={e => setFormProfile((p: any) => ({ ...p, description: e.target.value }))} placeholder="What your studio is about..." rows={3} style={{ width: "100%", padding: "8px 12px", fontSize: 13, border: `1px solid ${inputBorder}`, borderRadius: 8, resize: "vertical" as const, outline: "none", background: inputBg, color: text1, fontFamily: "inherit", boxSizing: "border-box" as const }} /></div>
+            
             <p style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", margin: "4px 0 0" }}>Instagram</p>
-            <div>{label("Instagram Profile URL")}{inp("instagram_url", "https://instagram.com/yourhandle")}</div>
-            <div>{label("Followers")}{inp("instagram_followers", "e.g. 12500", "number")}</div>
+            <div style={{ background: isDark ? "rgba(16,185,129,0.05)" : "#F0FDF4", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#059669", marginTop: -8 }}>
+              \u2728 Paste your URL — follower counts are auto-fetched when you leave the field
+            </div>
+            <div>{label("Instagram Profile URL")}{socialInp("instagram", "https://instagram.com/yourhandle", "instagram_url")}</div>
+            <div>{label("Followers (auto-fills)")}{inp("instagram_followers", "auto-detected or enter manually", "number")}</div>
 
             <p style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", margin: "4px 0 0" }}>YouTube</p>
-            <div>{label("YouTube Channel URL")}{inp("youtube_url", "https://youtube.com/@channel")}</div>
-            <div>{label("Subscribers")}{inp("youtube_subscribers", "e.g. 5000", "number")}</div>
+            <div>{label("YouTube Channel URL")}{socialInp("youtube", "https://youtube.com/@channel", "youtube_url")}</div>
+            <div>{label("Subscribers (auto-fills)")}{inp("youtube_subscribers", "auto-detected or enter manually", "number")}</div>
 
             <p style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", margin: "4px 0 0" }}>TikTok</p>
-            <div>{label("TikTok Profile URL")}{inp("tiktok_url", "https://tiktok.com/@yourhandle")}</div>
+            <div>{label("TikTok Profile URL")}{socialInp("tiktok", "https://tiktok.com/@yourhandle", "tiktok_url")}</div>
             <div>{label("Followers")}{inp("tiktok_followers", "e.g. 8000", "number")}</div>
 
             <p style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", margin: "4px 0 0" }}>Twitter / X</p>
-            <div>{label("Twitter / X Profile URL")}{inp("twitter_url", "https://twitter.com/yourhandle")}</div>
+            <div>{label("Twitter / X Profile URL")}{socialInp("twitter", "https://twitter.com/yourhandle", "twitter_url")}</div>
             <div>{label("Followers")}{inp("twitter_followers", "e.g. 3200", "number")}</div>
 
             <p style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", margin: "4px 0 0" }}>LinkedIn</p>
-            <div>{label("LinkedIn Profile URL")}{inp("linkedin_url", "https://linkedin.com/in/...")}</div>
+            <div>{label("LinkedIn Profile URL")}{socialInp("linkedin", "https://linkedin.com/in/...", "linkedin_url")}</div>
 
             <p style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", margin: "4px 0 0" }}>Substack</p>
-            <div>{label("Substack URL")}{inp("substack_url", "https://yourname.substack.com")}</div>
-            <div>{label("Subscribers")}{inp("substack_subscriber_count", "e.g. 1200", "number")}</div>
+            <div>{label("Substack URL")}{socialInp("substack", "https://substack.com/@yourname", "substack_url")}</div>
+            <div>{label("Subscribers (auto-fills)")}{inp("substack_subscriber_count", "auto-detected or enter manually", "number")}</div>
 
             <p style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase" as const, letterSpacing: "0.5px", margin: "4px 0 0" }}>Podcast</p>
             <div>{label("Podcast Name")}{inp("podcast_name", "The Daily Hustle")}</div>
             <div>{label("Podcast URL")}{inp("podcast_url", "https://...")}</div>
 
             <button onClick={handleSaveSettings} style={{ marginTop: 8, padding: "12px 0", width: "100%", background: "#10B981", color: "white", border: "none", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Save Settings</button>
-            <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "center" as const, margin: "6px 0 0" }}>Paste your profile URL — handles are extracted automatically when you save.</p>
+            <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "center" as const, margin: "6px 0 0" }}>URLs are saved — follower counts auto-fetch when you leave each field.</p>
           </div>
         </>,
         () => setSettingsOpen(false)
@@ -489,20 +531,12 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
             {studioImages[0] && <img src={studioImages[0]} alt="" style={{ width: 100, height: 100, borderRadius: "50%", objectFit: "cover", margin: "0 auto 16px" }} />}
             <h2 style={{ fontSize: 22, fontWeight: 700, color: text1, margin: "0 0 4px" }}>{studioName || "Your Studio"}</h2>
             {studioHandle && <p style={{ fontSize: 13, color: text2, margin: "0 0 16px" }}>@{studioHandle}</p>}
-            {studioGoals.length > 0 && studioGoals.map((g: any) => (
+            {studioGoals.map((g: any) => (
               <div key={g.id} style={{ textAlign: "left" as const, padding: "10px 0", borderTop: `1px solid ${border}` }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
-                  <span style={{ color: text1, fontWeight: 500 }}>{g.title}</span>
-                  <span style={{ color: "#10B981", fontWeight: 600 }}>{g.progress}%</span>
-                </div>
-                <div style={{ height: 6, borderRadius: 3, background: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}>
-                  <div style={{ height: "100%", borderRadius: 3, background: "#10B981", width: `${g.progress}%`, transition: "width 300ms" }} />
-                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}><span style={{ color: text1, fontWeight: 500 }}>{g.title}</span><span style={{ color: "#10B981", fontWeight: 600 }}>{g.progress}%</span></div>
+                <div style={{ height: 6, borderRadius: 3, background: isDark ? "rgba(255,255,255,0.08)" : "#E5E7EB" }}><div style={{ height: "100%", borderRadius: 3, background: "#10B981", width: `${g.progress}%` }} /></div>
               </div>
             ))}
-          </div>
-          <div style={{ padding: "12px 20px", borderTop: `1px solid ${border}`, display: "flex", justifyContent: "flex-end" }}>
-            <button onClick={() => setPreviewOpen(false)} style={{ padding: "8px 24px", background: "#111827", color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Close</button>
           </div>
         </>,
         () => setPreviewOpen(false)
@@ -510,3 +544,6 @@ export default function StudioHeaderCardV2({ activeTab, onTabChange }: Props) {
     </>
   );
 }
+
+// Need to import useRef
+import { useRef } from "react";

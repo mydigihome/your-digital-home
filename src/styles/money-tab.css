@@ -1,1 +1,37 @@
-/* Placeholder — full money-tab CSS will be added when WealthTrackerPage is rebuilt */
+/* Money tab root — proper spacing from AppShell notif bell */
+.money-tab-root {
+  padding: 24px 72px 40px 32px; /* right: 72px clears the fixed 38px bell + 24px gap */
+  min-height: 100%;
+  max-width: 1300px;
+}
+
+.money-tab-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.money-tab-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.money-tab-row.full-width {
+  grid-template-columns: 1fr;
+}
+
+/* Mobile */
+@media (max-width: 1023px) {
+  .money-tab-root {
+    padding: 16px 16px 100px 16px; /* bottom: 100px for mobile tab bar */
+  }
+
+  .money-tab-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+}
